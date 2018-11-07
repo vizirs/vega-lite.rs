@@ -1,12 +1,12 @@
 [package]
 name = "vega-lite"
-version = "0.0.1"
+version = "0.0.2"
 license = "BSD-3-Clause"
 authors = ["Bruce Mitchener <bruce.mitchener@gmail.com>"]
 readme = "README.md"
 description = "Generated code for using the Vega-Lite schema from Rust."
 keywords = ["vega", "charts", "graphs", "visualization"]
-documentation = "https://endoli.github.io/vega-lite.rs"
+documentation = "https://docs.rs/vega-lite/"
 homepage = "https://github.com/endoli/vega-lite.rs"
 repository = "https://github.com/endoli/vega-lite.rs"
 

@@ -13,7 +13,7 @@ Add it to your `Cargo.toml` like so:
 
 ```toml
 [dependencies]
-vega-lite = "0.0.1"
+vega-lite = "0.0.2"
 ```
 
 ## Status of Implementation
