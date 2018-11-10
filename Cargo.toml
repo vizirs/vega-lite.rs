@@ -7,8 +7,8 @@ readme = "README.md"
 description = "Generated code for using the Vega-Lite schema from Rust."
 keywords = ["vega", "charts", "graphs", "visualization"]
 documentation = "https://docs.rs/vega-lite/"
-homepage = "https://github.com/endoli/vega-lite.rs"
-repository = "https://github.com/endoli/vega-lite.rs"
+homepage = "https://github.com/vizirs/vega-lite.rs"
+repository = "https://github.com/vizirs/vega-lite.rs"
 
 [dependencies]
 serde = "1.0"

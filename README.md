@@ -1,6 +1,6 @@
 # vega-lite
 
-[![Build Status](https://travis-ci.org/endoli/vega-lite.rs.svg?branch=master)](https://travis-ci.org/endoli/vega-lite.rs)
+[![Build Status](https://travis-ci.org/vizirs/vega-lite.rs.svg?branch=master)](https://travis-ci.org/vizirs/vega-lite.rs)
 [![](http://meritbadge.herokuapp.com/vega-lite)](https://crates.io/crates/vega-lite)
 
 Licensed under the BSD 3-clause license.
