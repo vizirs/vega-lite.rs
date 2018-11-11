@@ -195,7 +195,7 @@ pub struct Vegalite {
     /// __Default value__: `10`
     pub spacing: Option<Spacing>,
     /// A specification of the view that gets faceted.
-    pub spec: Box<Option<SpecClass>>,
+    pub spec: Option<SpecClass>,
     /// Layer or single view specifications to be layered.
     ///
     /// __Note__: Specifications inside `layer` cannot use `row` and `column` channels as
@@ -3519,25 +3519,25 @@ pub struct BinParams {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConditionalValueDef {
-    pub test: Box<Option<Box<PurpleLogicalOperandPredicate>>>,
+    pub test: Option<PurpleLogicalOperandPredicate>,
     /// A constant value in visual domain (e.g., `"red"` / "#0099ff" for color, values between
     /// `0` to `1` for opacity).
     pub value: Option<Value>,
     /// A [selection name](https://vega.github.io/vega-lite/docs/selection.html), or a series of
     /// [composed selections](https://vega.github.io/vega-lite/docs/selection.html#compose).
-    pub selection: Box<Option<Box<PurpleSelectionOperand>>>,
+    pub selection: Option<PurpleSelectionOperand>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Selection {
-    pub not: Box<Option<Box<PurpleSelectionOperand>>>,
+    pub not: Option<Box<PurpleSelectionOperand>>,
     pub and: Option<Vec<SelectionOperandElement>>,
     pub or: Option<Vec<SelectionOperandElement>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Predicate {
-    pub not: Box<Option<Box<PurpleLogicalOperandPredicate>>>,
+    pub not: Option<Box<PurpleLogicalOperandPredicate>>,
     pub and: Option<Vec<LogicalOperandPredicateElement>>,
     pub or: Option<Vec<LogicalOperandPredicateElement>>,
     /// The value that the field should be equal to.
@@ -3566,7 +3566,7 @@ pub struct Predicate {
     /// [`NaN`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/NaN).
     pub valid: Option<bool>,
     /// Filter using a selection name.
-    pub selection: Box<Option<Box<PurpleSelectionOperand>>>,
+    pub selection: Option<Box<PurpleSelectionOperand>>,
 }
 
 /// Object for defining datetime in Vega-Lite Filter.
@@ -3606,13 +3606,13 @@ pub struct DateTime {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConditionalPredicateMarkPropFieldDefClass {
-    pub test: Box<Option<Box<PurpleLogicalOperandPredicate>>>,
+    pub test: Option<PurpleLogicalOperandPredicate>,
     /// A constant value in visual domain (e.g., `"red"` / "#0099ff" for color, values between
     /// `0` to `1` for opacity).
     pub value: Option<Value>,
     /// A [selection name](https://vega.github.io/vega-lite/docs/selection.html), or a series of
     /// [composed selections](https://vega.github.io/vega-lite/docs/selection.html#compose).
-    pub selection: Box<Option<Box<PurpleSelectionOperand>>>,
+    pub selection: Option<PurpleSelectionOperand>,
     /// Aggregation function for the field
     /// (e.g., `mean`, `sum`, `median`, `min`, `max`, `count`).
     ///
@@ -4647,13 +4647,13 @@ pub struct DefWithCondition {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConditionalPredicateFieldDefClass {
-    pub test: Box<Option<Box<PurpleLogicalOperandPredicate>>>,
+    pub test: Option<PurpleLogicalOperandPredicate>,
     /// A constant value in visual domain (e.g., `"red"` / "#0099ff" for color, values between
     /// `0` to `1` for opacity).
     pub value: Option<Value>,
     /// A [selection name](https://vega.github.io/vega-lite/docs/selection.html), or a series of
     /// [composed selections](https://vega.github.io/vega-lite/docs/selection.html#compose).
-    pub selection: Box<Option<Box<PurpleSelectionOperand>>>,
+    pub selection: Option<PurpleSelectionOperand>,
     /// Aggregation function for the field
     /// (e.g., `mean`, `sum`, `median`, `min`, `max`, `count`).
     ///
@@ -4973,13 +4973,13 @@ pub struct TextClass {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConditionalPredicateTextFieldDefClass {
-    pub test: Box<Option<Box<PurpleLogicalOperandPredicate>>>,
+    pub test: Option<PurpleLogicalOperandPredicate>,
     /// A constant value in visual domain (e.g., `"red"` / "#0099ff" for color, values between
     /// `0` to `1` for opacity).
     pub value: Option<Value>,
     /// A [selection name](https://vega.github.io/vega-lite/docs/selection.html), or a series of
     /// [composed selections](https://vega.github.io/vega-lite/docs/selection.html#compose).
-    pub selection: Box<Option<Box<PurpleSelectionOperand>>>,
+    pub selection: Option<PurpleSelectionOperand>,
     /// Aggregation function for the field
     /// (e.g., `mean`, `sum`, `median`, `min`, `max`, `count`).
     ///
@@ -5970,7 +5970,7 @@ pub struct SpecClass {
     /// __Default value__: `10`
     pub spacing: Option<Spacing>,
     /// A specification of the view that gets faceted.
-    pub spec: Box<Option<SpecClass>>,
+    pub spec: Option<Box<SpecClass>>,
     /// An object that describes what fields should be repeated into views that are laid out as a
     /// `row` or `column`.
     pub repeat: Option<Repeat>,
@@ -6135,7 +6135,7 @@ pub struct Spec {
     /// __Default value__: `10`
     pub spacing: Option<Spacing>,
     /// A specification of the view that gets faceted.
-    pub spec: Box<Option<SpecClass>>,
+    pub spec: Option<SpecClass>,
     /// An object that describes what fields should be repeated into views that are laid out as a
     /// `row` or `column`.
     pub repeat: Option<Repeat>,
@@ -6872,7 +6872,7 @@ pub struct Transform {
     /// predicate](https://vega.github.io/vega-lite/docs/filter.html#selection-predicate)
     ///
     /// 4) a logical operand that combines (1), (2), or (3).
-    pub filter: Box<Option<Box<PurpleLogicalOperandPredicate>>>,
+    pub filter: Option<PurpleLogicalOperandPredicate>,
     /// The field for storing the computed formula value.
     ///
     /// The field or fields for storing the computed formula value.
