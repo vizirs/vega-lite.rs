@@ -17,7 +17,7 @@ use std::collections::HashMap;
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Vegalite {
     /// URL to [JSON schema](http://json-schema.org/) for a Vega-Lite specification. Unless you
-    /// have a reason to change this, use `https://vega.github.io/schema/vega-lite/v2.json`.
+    /// have a reason to change this, use `https://vega.github.io/schema/vega-lite/v3.json`.
     /// Setting the `$schema` property allows automatic validation and autocomplete in editors
     /// that support JSON schema.
     #[serde(rename = "$schema")]
@@ -100,6 +100,10 @@ pub struct Vegalite {
     pub title: Option<Title>,
     /// An array of data transformations such as filter and new field calculation.
     pub transform: Option<Vec<Transform>>,
+    /// Optional metadata that will be passed to Vega.
+    /// This object is completely ignored by Vega and Vega-Lite and can be used for custom
+    /// metadata.
+    pub usermeta: Option<HashMap<String, Option<serde_json::Value>>>,
     /// The width of a visualization.
     ///
     /// __Default value:__ This will be determined by the following rules:
@@ -142,7 +146,7 @@ pub struct Vegalite {
     /// used to supply different alignments for rows and columns.
     ///
     /// __Default value:__ `"all"`.
-    pub align: Option<Align>,
+    pub align: Option<AlignUnion>,
     /// The bounds calculation method to use for determining the extent of a sub-plot. One of
     /// `full` (the default) or `flush`.
     ///
@@ -195,7 +199,9 @@ pub struct Vegalite {
     /// Layer or single view specifications to be layered.
     ///
     /// __Note__: Specifications inside `layer` cannot use `row` and `column` channels as
-    /// layering facet specifications is not allowed.
+    /// layering facet specifications is not allowed. Instead, use the [facet
+    /// operator](https://vega.github.io/vega-lite/docs/facet.html) and place a layer inside a
+    /// facet.
     pub layer: Option<Vec<LayerSpec>>,
     /// An object that describes what fields should be repeated into views that are laid out as a
     /// `row` or `column`.
@@ -263,31 +269,33 @@ pub struct Config {
     pub axis: Option<AxisConfig>,
     /// Specific axis config for axes with "band" scales.
     #[serde(rename = "axisBand")]
-    pub axis_band: Option<VgAxisConfig>,
+    pub axis_band: Option<AxisConfig>,
     /// Specific axis config for x-axis along the bottom edge of the chart.
     #[serde(rename = "axisBottom")]
-    pub axis_bottom: Option<VgAxisConfig>,
+    pub axis_bottom: Option<AxisConfig>,
     /// Specific axis config for y-axis along the left edge of the chart.
     #[serde(rename = "axisLeft")]
-    pub axis_left: Option<VgAxisConfig>,
+    pub axis_left: Option<AxisConfig>,
     /// Specific axis config for y-axis along the right edge of the chart.
     #[serde(rename = "axisRight")]
-    pub axis_right: Option<VgAxisConfig>,
+    pub axis_right: Option<AxisConfig>,
     /// Specific axis config for x-axis along the top edge of the chart.
     #[serde(rename = "axisTop")]
-    pub axis_top: Option<VgAxisConfig>,
+    pub axis_top: Option<AxisConfig>,
     /// X-axis specific config.
     #[serde(rename = "axisX")]
-    pub axis_x: Option<VgAxisConfig>,
+    pub axis_x: Option<AxisConfig>,
     /// Y-axis specific config.
     #[serde(rename = "axisY")]
-    pub axis_y: Option<VgAxisConfig>,
+    pub axis_y: Option<AxisConfig>,
     /// CSS color property to use as the background of visualization.
     ///
     /// __Default value:__ none (transparent)
     pub background: Option<String>,
     /// Bar-Specific Config
     pub bar: Option<BarConfig>,
+    /// Box Config
+    pub boxplot: Option<BoxPlotConfig>,
     /// Circle-Specific Config
     pub circle: Option<MarkConfig>,
     /// Default axis and legend title for count fields.
@@ -295,10 +303,10 @@ pub struct Config {
     /// __Default value:__ `'Number of Records'`.
     #[serde(rename = "countTitle")]
     pub count_title: Option<String>,
-    /// A global data store for named datasets. This is a mapping from names to inline datasets.
-    /// This can be an array of objects or primitive values or a string. Arrays of primitive
-    /// values are ingested as objects with a `data` property.
-    pub datasets: Option<HashMap<String, InlineDatasetValue>>,
+    /// ErrorBand Config
+    pub errorband: Option<ErrorBandConfig>,
+    /// ErrorBar Config
+    pub errorbar: Option<ErrorBarConfig>,
     /// Defines how Vega-Lite generates title for fields.  There are three possible styles:
     /// - `"verbal"` (Default) - displays function in a verbal style (e.g., "Sum of field",
     /// "Year-month of date", "field (binned)").
@@ -331,7 +339,7 @@ pub struct Config {
     pub line: Option<LineConfig>,
     /// Mark Config
     pub mark: Option<MarkConfig>,
-    /// D3 Number format for axis labels and text tables. For example "s" for SI units. Use [D3's
+    /// D3 Number format for guide labels and text marks. For example "s" for SI units. Use [D3's
     /// number format pattern](https://github.com/d3/d3-format#locale_format).
     #[serde(rename = "numberFormat")]
     pub number_format: Option<String>,
@@ -348,12 +356,12 @@ pub struct Config {
     /// [projections](https://vega.github.io/vega-lite/docs/projection.html). For a full list of
     /// projection configuration options, please see the [corresponding section of the projection
     /// documentation](https://vega.github.io/vega-lite/docs/projection.html#config).
-    pub projection: Option<ProjectionConfig>,
+    pub projection: Option<Projection>,
     /// An object hash that defines default range arrays or schemes for using with scales.
     /// For a full list of scale range configuration options, please see the [corresponding
     /// section of the scale
     /// documentation](https://vega.github.io/vega-lite/docs/scale.html#config).
-    pub range: Option<HashMap<String, ConfigRange>>,
+    pub range: Option<HashMap<String, RangeValue>>,
     /// Rect-Specific Config
     pub rect: Option<MarkConfig>,
     /// Rule-Specific Config
@@ -378,11 +386,12 @@ pub struct Config {
     pub text: Option<TextConfig>,
     /// Tick-Specific Config
     pub tick: Option<TickConfig>,
-    /// Default datetime format for axis and legend labels. The format can be set directly on
-    /// each axis and legend. Use [D3's time format
-    /// pattern](https://github.com/d3/d3-time-format#locale_format).
+    /// Default time format for raw time values (without time units) in text marks, legend labels
+    /// and header labels.
     ///
-    /// __Default value:__ `''` (The format will be automatically determined).
+    /// __Default value:__ `"%b %d, %Y"`
+    /// __Note:__ Axes automatically determine format each label automatically so this config
+    /// would not affect axes.
     #[serde(rename = "timeFormat")]
     pub time_format: Option<String>,
     /// Title configuration, which determines default properties for all
@@ -401,13 +410,13 @@ pub struct Config {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AreaConfig {
     /// The horizontal alignment of the text. One of `"left"`, `"right"`, `"center"`.
-    pub align: Option<HorizontalAlign>,
+    pub align: Option<Align>,
     /// The rotation angle of the text, in degrees.
     pub angle: Option<f64>,
     /// The vertical alignment of the text. One of `"top"`, `"middle"`, `"bottom"`.
     ///
     /// __Default value:__ `"middle"`
-    pub baseline: Option<VerticalAlign>,
+    pub baseline: Option<TextBaseline>,
     /// Default color.  Note that `fill` and `stroke` have higher precedence than `color` and
     /// will override `color`.
     ///
@@ -544,11 +553,16 @@ pub struct AreaConfig {
     ///
     /// __Default value:__ `"circle"`
     pub shape: Option<String>,
-    /// The pixel area each the point/circle/square.
-    /// For example: in the case of circles, the radius is determined in part by the square root
-    /// of the size value.
+    /// Default size for marks.
+    /// - For `point`/`circle`/`square`, this represents the pixel area of the marks. For
+    /// example: in the case of circles, the radius is determined in part by the square root of
+    /// the size value.
+    /// - For `bar`, this represents the band size of the bar, in pixels.
+    /// - For `text`, this represents the font size, in pixels.
     ///
-    /// __Default value:__ `30`
+    /// __Default value:__ `30` for point, circle, square marks; `rangeStep` - 1 for bar marks
+    /// with discrete dimensions; `5` for bar marks with continuous dimensions; `11` for text
+    /// marks.
     pub size: Option<f64>,
     /// Default Stroke Color.  This has higher precedence than `config.color`
     ///
@@ -590,20 +604,26 @@ pub struct AreaConfig {
     /// `startAngle` and `endAngle` properties: angles are measured in radians, with `0`
     /// indicating "north".
     pub theta: Option<f64>,
-    /// The tooltip text to show upon mouse hover.
-    pub tooltip: Option<serde_json::Value>,
+    /// The tooltip text string to show upon mouse hover or an object defining which fields
+    /// should the tooltip be derived from.
+    ///
+    /// - If `tooltip` is `{"content": "encoding"}`, then all fields from `encoding` will be
+    /// used.
+    /// - If `tooltip` is `{"content": "data"}`, then all fields that appear in the highlighted
+    /// data point will be used.
+    pub tooltip: Option<PurpleTooltip>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct OverlayMarkDef {
     /// The horizontal alignment of the text. One of `"left"`, `"right"`, `"center"`.
-    pub align: Option<HorizontalAlign>,
+    pub align: Option<Align>,
     /// The rotation angle of the text, in degrees.
     pub angle: Option<f64>,
     /// The vertical alignment of the text. One of `"top"`, `"middle"`, `"bottom"`.
     ///
     /// __Default value:__ `"middle"`
-    pub baseline: Option<VerticalAlign>,
+    pub baseline: Option<TextBaseline>,
     /// Whether a mark be clipped to the enclosing group’s width and height.
     pub clip: Option<bool>,
     /// Default color.  Note that `fill` and `stroke` have higher precedence than `color` and
@@ -718,11 +738,16 @@ pub struct OverlayMarkDef {
     ///
     /// __Default value:__ `"circle"`
     pub shape: Option<String>,
-    /// The pixel area each the point/circle/square.
-    /// For example: in the case of circles, the radius is determined in part by the square root
-    /// of the size value.
+    /// Default size for marks.
+    /// - For `point`/`circle`/`square`, this represents the pixel area of the marks. For
+    /// example: in the case of circles, the radius is determined in part by the square root of
+    /// the size value.
+    /// - For `bar`, this represents the band size of the bar, in pixels.
+    /// - For `text`, this represents the font size, in pixels.
     ///
-    /// __Default value:__ `30`
+    /// __Default value:__ `30` for point, circle, square marks; `rangeStep` - 1 for bar marks
+    /// with discrete dimensions; `5` for bar marks with continuous dimensions; `11` for text
+    /// marks.
     pub size: Option<f64>,
     /// Default Stroke Color.  This has higher precedence than `config.color`
     ///
@@ -777,8 +802,14 @@ pub struct OverlayMarkDef {
     /// `startAngle` and `endAngle` properties: angles are measured in radians, with `0`
     /// indicating "north".
     pub theta: Option<f64>,
-    /// The tooltip text to show upon mouse hover.
-    pub tooltip: Option<serde_json::Value>,
+    /// The tooltip text string to show upon mouse hover or an object defining which fields
+    /// should the tooltip be derived from.
+    ///
+    /// - If `tooltip` is `{"content": "encoding"}`, then all fields from `encoding` will be
+    /// used.
+    /// - If `tooltip` is `{"content": "data"}`, then all fields that appear in the highlighted
+    /// data point will be used.
+    pub tooltip: Option<PurpleTooltip>,
     /// Offset for x2-position.
     #[serde(rename = "x2Offset")]
     pub x2_offset: Option<f64>,
@@ -793,15 +824,36 @@ pub struct OverlayMarkDef {
     pub y_offset: Option<f64>,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct TooltipContent {
+    pub content: Content,
+}
+
 /// Axis configuration, which determines default properties for all `x` and `y`
 /// [axes](https://vega.github.io/vega-lite/docs/axis.html). For a full list of axis
 /// configuration options, please see the [corresponding section of the axis
 /// documentation](https://vega.github.io/vega-lite/docs/axis.html#config).
+///
+/// Specific axis config for axes with "band" scales.
+///
+/// Specific axis config for x-axis along the bottom edge of the chart.
+///
+/// Specific axis config for y-axis along the left edge of the chart.
+///
+/// Specific axis config for y-axis along the right edge of the chart.
+///
+/// Specific axis config for x-axis along the top edge of the chart.
+///
+/// X-axis specific config.
+///
+/// Y-axis specific config.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct AxisConfig {
     /// An interpolation fraction indicating where, for `band` scales, axis ticks should be
     /// positioned. A value of `0` places ticks at the left edge of their bands. A value of `0.5`
     /// places ticks in the middle of their bands.
+    ///
+    /// __Default value:__ `0.5`
     #[serde(rename = "bandPosition")]
     pub band_position: Option<f64>,
     /// A boolean flag indicating if the domain (the axis baseline) should be included as part of
@@ -811,12 +863,15 @@ pub struct AxisConfig {
     pub domain: Option<bool>,
     /// Color of axis domain line.
     ///
-    /// __Default value:__  (none, using Vega default).
+    /// __Default value:__ `"gray"`.
     #[serde(rename = "domainColor")]
     pub domain_color: Option<String>,
+    /// Opacity of the axis domain line.
+    #[serde(rename = "domainOpacity")]
+    pub domain_opacity: Option<f64>,
     /// Stroke width of axis domain line
     ///
-    /// __Default value:__  (none, using Vega default).
+    /// __Default value:__ `1`
     #[serde(rename = "domainWidth")]
     pub domain_width: Option<f64>,
     /// A boolean flag indicating if grid lines should be included as part of the axis
@@ -826,6 +881,8 @@ pub struct AxisConfig {
     /// otherwise, `false`.
     pub grid: Option<bool>,
     /// Color of gridlines.
+    ///
+    /// __Default value:__ `"lightGray"`.
     #[serde(rename = "gridColor")]
     pub grid_color: Option<String>,
     /// The offset (in pixels) into which to begin drawing with the grid dash array.
@@ -833,19 +890,29 @@ pub struct AxisConfig {
     pub grid_dash: Option<Vec<f64>>,
     /// The stroke opacity of grid (value between [0,1])
     ///
-    /// __Default value:__ (`1` by default)
+    /// __Default value:__ `1`
     #[serde(rename = "gridOpacity")]
     pub grid_opacity: Option<f64>,
     /// The grid width, in pixels.
+    ///
+    /// __Default value:__ `1`
     #[serde(rename = "gridWidth")]
     pub grid_width: Option<f64>,
+    /// Horizontal text alignment of axis tick labels, overriding the default setting for the
+    /// current axis orientation.
+    #[serde(rename = "labelAlign")]
+    pub label_align: Option<Align>,
     /// The rotation angle of the axis labels.
     ///
     /// __Default value:__ `-90` for nominal and ordinal fields; `0` otherwise.
     #[serde(rename = "labelAngle")]
     pub label_angle: Option<f64>,
-    /// Indicates if labels should be hidden if they exceed the axis range. If `false `(the
-    /// default) no bounds overlap analysis is performed. If `true`, labels will be hidden if
+    /// Vertical text baseline of axis tick labels, overriding the default setting for the
+    /// current axis orientation. Can be `"top"`, `"middle"`, `"bottom"`, or `"alphabetic"`.
+    #[serde(rename = "labelBaseline")]
+    pub label_baseline: Option<TextBaseline>,
+    /// Indicates if labels should be hidden if they exceed the axis range. If `false` (the
+    /// default) no bounds overlap analysis is performed. If `true`, labels will be hidden if
     /// they exceed the axis range by more than 1 pixel. If this property is a number, it
     /// specifies the pixel tolerance: the maximum amount by which a label bounding box may
     /// exceed the axis range.
@@ -867,15 +934,30 @@ pub struct AxisConfig {
     /// __Default value:__ `true` for axis of a continuous x-scale. Otherwise, `false`.
     #[serde(rename = "labelFlush")]
     pub label_flush: Option<Label>,
+    /// Indicates the number of pixels by which to offset flush-adjusted labels. For example, a
+    /// value of `2` will push flush-adjusted labels 2 pixels outward from the center of the
+    /// axis. Offsets can help the labels better visually group with corresponding axis ticks.
+    ///
+    /// __Default value:__ `0`.
+    #[serde(rename = "labelFlushOffset")]
+    pub label_flush_offset: Option<f64>,
     /// The font of the tick label.
     #[serde(rename = "labelFont")]
     pub label_font: Option<String>,
     /// The font size of the label, in pixels.
     #[serde(rename = "labelFontSize")]
     pub label_font_size: Option<f64>,
+    /// Font weight of axis tick labels.
+    #[serde(rename = "labelFontWeight")]
+    pub label_font_weight: Option<FontWeight>,
     /// Maximum allowed pixel width of axis tick labels.
+    ///
+    /// __Default value:__ `180`
     #[serde(rename = "labelLimit")]
     pub label_limit: Option<f64>,
+    /// The opacity of the labels.
+    #[serde(rename = "labelOpacity")]
+    pub label_opacity: Option<f64>,
     /// The strategy to use for resolving overlap of axis labels. If `false` (the default), no
     /// overlap reduction is attempted. If set to `true` or `"parity"`, a strategy of removing
     /// every other label is used (this works well for standard linear axes). If set to
@@ -885,13 +967,15 @@ pub struct AxisConfig {
     /// __Default value:__ `true` for non-nominal fields with non-log scales; `"greedy"` for log
     /// scales; otherwise `false`.
     #[serde(rename = "labelOverlap")]
-    pub label_overlap: Option<LabelOverlapUnion>,
+    pub label_overlap: Option<LabelOverlap>,
     /// The padding, in pixels, between axis and text labels.
+    ///
+    /// __Default value:__ `2`
     #[serde(rename = "labelPadding")]
     pub label_padding: Option<f64>,
     /// A boolean flag indicating if labels should be included as part of the axis.
     ///
-    /// __Default value:__  `true`.
+    /// __Default value:__ `true`.
     pub labels: Option<bool>,
     /// The maximum extent in pixels that axis ticks and labels should use. This determines a
     /// maximum offset value for axis titles.
@@ -911,204 +995,51 @@ pub struct AxisConfig {
     #[serde(rename = "shortTimeLabels")]
     pub short_time_labels: Option<bool>,
     /// The color of the axis's tick.
+    ///
+    /// __Default value:__ `"gray"`
     #[serde(rename = "tickColor")]
     pub tick_color: Option<String>,
-    /// Boolean flag indicating if pixel position values should be rounded to the nearest integer.
-    #[serde(rename = "tickRound")]
-    pub tick_round: Option<bool>,
-    /// Boolean value that determines whether the axis should include ticks.
-    pub ticks: Option<bool>,
-    /// The size in pixels of axis ticks.
-    #[serde(rename = "tickSize")]
-    pub tick_size: Option<f64>,
-    /// The width, in pixels, of ticks.
-    #[serde(rename = "tickWidth")]
-    pub tick_width: Option<f64>,
-    /// Horizontal text alignment of axis titles.
-    #[serde(rename = "titleAlign")]
-    pub title_align: Option<String>,
-    /// Angle in degrees of axis titles.
-    #[serde(rename = "titleAngle")]
-    pub title_angle: Option<f64>,
-    /// Vertical text baseline for axis titles.
-    #[serde(rename = "titleBaseline")]
-    pub title_baseline: Option<String>,
-    /// Color of the title, can be in hex color code or regular color name.
-    #[serde(rename = "titleColor")]
-    pub title_color: Option<String>,
-    /// Font of the title. (e.g., `"Helvetica Neue"`).
-    #[serde(rename = "titleFont")]
-    pub title_font: Option<String>,
-    /// Font size of the title.
-    #[serde(rename = "titleFontSize")]
-    pub title_font_size: Option<f64>,
-    /// Font weight of the title.
-    /// This can be either a string (e.g `"bold"`, `"normal"`) or a number (`100`, `200`, `300`,
-    /// ..., `900` where `"normal"` = `400` and `"bold"` = `700`).
-    #[serde(rename = "titleFontWeight")]
-    pub title_font_weight: Option<FontWeight>,
-    /// Maximum allowed pixel width of axis titles.
-    #[serde(rename = "titleLimit")]
-    pub title_limit: Option<f64>,
-    /// Max length for axis title if the title is automatically generated from the field's
-    /// description.
-    #[serde(rename = "titleMaxLength")]
-    pub title_max_length: Option<f64>,
-    /// The padding, in pixels, between title and axis.
-    #[serde(rename = "titlePadding")]
-    pub title_padding: Option<f64>,
-    /// X-coordinate of the axis title relative to the axis group.
-    #[serde(rename = "titleX")]
-    pub title_x: Option<f64>,
-    /// Y-coordinate of the axis title relative to the axis group.
-    #[serde(rename = "titleY")]
-    pub title_y: Option<f64>,
-}
-
-/// Specific axis config for axes with "band" scales.
-///
-/// Specific axis config for x-axis along the bottom edge of the chart.
-///
-/// Specific axis config for y-axis along the left edge of the chart.
-///
-/// Specific axis config for y-axis along the right edge of the chart.
-///
-/// Specific axis config for x-axis along the top edge of the chart.
-///
-/// X-axis specific config.
-///
-/// Y-axis specific config.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct VgAxisConfig {
-    /// An interpolation fraction indicating where, for `band` scales, axis ticks should be
-    /// positioned. A value of `0` places ticks at the left edge of their bands. A value of `0.5`
-    /// places ticks in the middle of their bands.
-    #[serde(rename = "bandPosition")]
-    pub band_position: Option<f64>,
-    /// A boolean flag indicating if the domain (the axis baseline) should be included as part of
-    /// the axis.
+    /// Boolean flag indicating if an extra axis tick should be added for the initial position of
+    /// the axis. This flag is useful for styling axes for `band` scales such that ticks are
+    /// placed on band boundaries rather in the middle of a band. Use in conjunction with
+    /// `"bandPostion": 1` and an axis `"padding"` value of `0`.
+    #[serde(rename = "tickExtra")]
+    pub tick_extra: Option<bool>,
+    /// Position offset in pixels to apply to ticks, labels, and gridlines.
+    #[serde(rename = "tickOffset")]
+    pub tick_offset: Option<f64>,
+    /// Opacity of the ticks.
+    #[serde(rename = "tickOpacity")]
+    pub tick_opacity: Option<f64>,
+    /// Boolean flag indicating if pixel position values should be rounded to the nearest
+    /// integer.
     ///
     /// __Default value:__ `true`
-    pub domain: Option<bool>,
-    /// Color of axis domain line.
-    ///
-    /// __Default value:__  (none, using Vega default).
-    #[serde(rename = "domainColor")]
-    pub domain_color: Option<String>,
-    /// Stroke width of axis domain line
-    ///
-    /// __Default value:__  (none, using Vega default).
-    #[serde(rename = "domainWidth")]
-    pub domain_width: Option<f64>,
-    /// A boolean flag indicating if grid lines should be included as part of the axis
-    ///
-    /// __Default value:__ `true` for [continuous
-    /// scales](https://vega.github.io/vega-lite/docs/scale.html#continuous) that are not binned;
-    /// otherwise, `false`.
-    pub grid: Option<bool>,
-    /// Color of gridlines.
-    #[serde(rename = "gridColor")]
-    pub grid_color: Option<String>,
-    /// The offset (in pixels) into which to begin drawing with the grid dash array.
-    #[serde(rename = "gridDash")]
-    pub grid_dash: Option<Vec<f64>>,
-    /// The stroke opacity of grid (value between [0,1])
-    ///
-    /// __Default value:__ (`1` by default)
-    #[serde(rename = "gridOpacity")]
-    pub grid_opacity: Option<f64>,
-    /// The grid width, in pixels.
-    #[serde(rename = "gridWidth")]
-    pub grid_width: Option<f64>,
-    /// The rotation angle of the axis labels.
-    ///
-    /// __Default value:__ `-90` for nominal and ordinal fields; `0` otherwise.
-    #[serde(rename = "labelAngle")]
-    pub label_angle: Option<f64>,
-    /// Indicates if labels should be hidden if they exceed the axis range. If `false `(the
-    /// default) no bounds overlap analysis is performed. If `true`, labels will be hidden if
-    /// they exceed the axis range by more than 1 pixel. If this property is a number, it
-    /// specifies the pixel tolerance: the maximum amount by which a label bounding box may
-    /// exceed the axis range.
-    ///
-    /// __Default value:__ `false`.
-    #[serde(rename = "labelBound")]
-    pub label_bound: Option<Label>,
-    /// The color of the tick label, can be in hex color code or regular color name.
-    #[serde(rename = "labelColor")]
-    pub label_color: Option<String>,
-    /// Indicates if the first and last axis labels should be aligned flush with the scale range.
-    /// Flush alignment for a horizontal axis will left-align the first label and right-align the
-    /// last label. For vertical axes, bottom and top text baselines are applied instead. If this
-    /// property is a number, it also indicates the number of pixels by which to offset the first
-    /// and last labels; for example, a value of 2 will flush-align the first and last labels and
-    /// also push them 2 pixels outward from the center of the axis. The additional adjustment
-    /// can sometimes help the labels better visually group with corresponding axis ticks.
-    ///
-    /// __Default value:__ `true` for axis of a continuous x-scale. Otherwise, `false`.
-    #[serde(rename = "labelFlush")]
-    pub label_flush: Option<Label>,
-    /// The font of the tick label.
-    #[serde(rename = "labelFont")]
-    pub label_font: Option<String>,
-    /// The font size of the label, in pixels.
-    #[serde(rename = "labelFontSize")]
-    pub label_font_size: Option<f64>,
-    /// Maximum allowed pixel width of axis tick labels.
-    #[serde(rename = "labelLimit")]
-    pub label_limit: Option<f64>,
-    /// The strategy to use for resolving overlap of axis labels. If `false` (the default), no
-    /// overlap reduction is attempted. If set to `true` or `"parity"`, a strategy of removing
-    /// every other label is used (this works well for standard linear axes). If set to
-    /// `"greedy"`, a linear scan of the labels is performed, removing any labels that overlaps
-    /// with the last visible label (this often works better for log-scaled axes).
-    ///
-    /// __Default value:__ `true` for non-nominal fields with non-log scales; `"greedy"` for log
-    /// scales; otherwise `false`.
-    #[serde(rename = "labelOverlap")]
-    pub label_overlap: Option<LabelOverlapUnion>,
-    /// The padding, in pixels, between axis and text labels.
-    #[serde(rename = "labelPadding")]
-    pub label_padding: Option<f64>,
-    /// A boolean flag indicating if labels should be included as part of the axis.
-    ///
-    /// __Default value:__  `true`.
-    pub labels: Option<bool>,
-    /// The maximum extent in pixels that axis ticks and labels should use. This determines a
-    /// maximum offset value for axis titles.
-    ///
-    /// __Default value:__ `undefined`.
-    #[serde(rename = "maxExtent")]
-    pub max_extent: Option<f64>,
-    /// The minimum extent in pixels that axis ticks and labels should use. This determines a
-    /// minimum offset value for axis titles.
-    ///
-    /// __Default value:__ `30` for y-axis; `undefined` for x-axis.
-    #[serde(rename = "minExtent")]
-    pub min_extent: Option<f64>,
-    /// The color of the axis's tick.
-    #[serde(rename = "tickColor")]
-    pub tick_color: Option<String>,
-    /// Boolean flag indicating if pixel position values should be rounded to the nearest integer.
     #[serde(rename = "tickRound")]
     pub tick_round: Option<bool>,
     /// Boolean value that determines whether the axis should include ticks.
+    ///
+    /// __Default value:__ `true`
     pub ticks: Option<bool>,
     /// The size in pixels of axis ticks.
+    ///
+    /// __Default value:__ `5`
     #[serde(rename = "tickSize")]
     pub tick_size: Option<f64>,
     /// The width, in pixels, of ticks.
+    ///
+    /// __Default value:__ `1`
     #[serde(rename = "tickWidth")]
     pub tick_width: Option<f64>,
     /// Horizontal text alignment of axis titles.
     #[serde(rename = "titleAlign")]
-    pub title_align: Option<String>,
+    pub title_align: Option<Align>,
     /// Angle in degrees of axis titles.
     #[serde(rename = "titleAngle")]
     pub title_angle: Option<f64>,
     /// Vertical text baseline for axis titles.
     #[serde(rename = "titleBaseline")]
-    pub title_baseline: Option<String>,
+    pub title_baseline: Option<TextBaseline>,
     /// Color of the title, can be in hex color code or regular color name.
     #[serde(rename = "titleColor")]
     pub title_color: Option<String>,
@@ -1126,10 +1057,9 @@ pub struct VgAxisConfig {
     /// Maximum allowed pixel width of axis titles.
     #[serde(rename = "titleLimit")]
     pub title_limit: Option<f64>,
-    /// Max length for axis title if the title is automatically generated from the field's
-    /// description.
-    #[serde(rename = "titleMaxLength")]
-    pub title_max_length: Option<f64>,
+    /// Opacity of the axis title.
+    #[serde(rename = "titleOpacity")]
+    pub title_opacity: Option<f64>,
     /// The padding, in pixels, between title and axis.
     #[serde(rename = "titlePadding")]
     pub title_padding: Option<f64>,
@@ -1145,13 +1075,13 @@ pub struct VgAxisConfig {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct BarConfig {
     /// The horizontal alignment of the text. One of `"left"`, `"right"`, `"center"`.
-    pub align: Option<HorizontalAlign>,
+    pub align: Option<Align>,
     /// The rotation angle of the text, in degrees.
     pub angle: Option<f64>,
     /// The vertical alignment of the text. One of `"top"`, `"middle"`, `"bottom"`.
     ///
     /// __Default value:__ `"middle"`
-    pub baseline: Option<VerticalAlign>,
+    pub baseline: Option<TextBaseline>,
     /// Offset between bars for binned field.  Ideal value for this is either 0 (Preferred by
     /// statisticians) or 1 (Vega-Lite Default, D3 example style).
     ///
@@ -1184,7 +1114,8 @@ pub struct BarConfig {
     ///
     /// __Default value:__ `"ltr"`
     pub dir: Option<Dir>,
-    /// The size of the bars.  If unspecified, the default size is  `bandSize-1`,
+    /// The default size of the bars with discrete dimensions.  If unspecified, the default size
+    /// is  `bandSize-1`,
     /// which provides 1 pixel offset between bars.
     #[serde(rename = "discreteBandSize")]
     pub discrete_band_size: Option<f64>,
@@ -1279,11 +1210,16 @@ pub struct BarConfig {
     ///
     /// __Default value:__ `"circle"`
     pub shape: Option<String>,
-    /// The pixel area each the point/circle/square.
-    /// For example: in the case of circles, the radius is determined in part by the square root
-    /// of the size value.
+    /// Default size for marks.
+    /// - For `point`/`circle`/`square`, this represents the pixel area of the marks. For
+    /// example: in the case of circles, the radius is determined in part by the square root of
+    /// the size value.
+    /// - For `bar`, this represents the band size of the bar, in pixels.
+    /// - For `text`, this represents the font size, in pixels.
     ///
-    /// __Default value:__ `30`
+    /// __Default value:__ `30` for point, circle, square marks; `rangeStep` - 1 for bar marks
+    /// with discrete dimensions; `5` for bar marks with continuous dimensions; `11` for text
+    /// marks.
     pub size: Option<f64>,
     /// Default Stroke Color.  This has higher precedence than `config.color`
     ///
@@ -1325,8 +1261,35 @@ pub struct BarConfig {
     /// `startAngle` and `endAngle` properties: angles are measured in radians, with `0`
     /// indicating "north".
     pub theta: Option<f64>,
-    /// The tooltip text to show upon mouse hover.
-    pub tooltip: Option<serde_json::Value>,
+    /// The tooltip text string to show upon mouse hover or an object defining which fields
+    /// should the tooltip be derived from.
+    ///
+    /// - If `tooltip` is `{"content": "encoding"}`, then all fields from `encoding` will be
+    /// used.
+    /// - If `tooltip` is `{"content": "data"}`, then all fields that appear in the highlighted
+    /// data point will be used.
+    pub tooltip: Option<PurpleTooltip>,
+}
+
+/// Box Config
+#[derive(Debug, Serialize, Deserialize)]
+pub struct BoxPlotConfig {
+    #[serde(rename = "box")]
+    pub box_plot_config_box: Option<BooleanOrMarkConfig>,
+    /// The extent of the whiskers. Available options include:
+    /// - `"min-max"`: min and max are the lower and upper whiskers respectively.
+    /// - A number representing multiple of the interquartile range (Q3-Q1).  This number will be
+    /// multiplied by the IQR. the product will be added to the third quartile to get the upper
+    /// whisker and subtracted from the first quartile to get the lower whisker.
+    ///
+    /// __Default value:__ `1.5`.
+    pub extent: Option<BoxplotExtent>,
+    pub median: Option<BooleanOrMarkConfig>,
+    pub outliers: Option<BooleanOrMarkConfig>,
+    pub rule: Option<BooleanOrMarkConfig>,
+    /// Size of the box and median tick of a box plot
+    pub size: Option<f64>,
+    pub ticks: Option<BooleanOrMarkConfig>,
 }
 
 /// Circle-Specific Config
@@ -1345,13 +1308,13 @@ pub struct BarConfig {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct MarkConfig {
     /// The horizontal alignment of the text. One of `"left"`, `"right"`, `"center"`.
-    pub align: Option<HorizontalAlign>,
+    pub align: Option<Align>,
     /// The rotation angle of the text, in degrees.
     pub angle: Option<f64>,
     /// The vertical alignment of the text. One of `"top"`, `"middle"`, `"bottom"`.
     ///
     /// __Default value:__ `"middle"`
-    pub baseline: Option<VerticalAlign>,
+    pub baseline: Option<TextBaseline>,
     /// Default color.  Note that `fill` and `stroke` have higher precedence than `color` and
     /// will override `color`.
     ///
@@ -1464,11 +1427,16 @@ pub struct MarkConfig {
     ///
     /// __Default value:__ `"circle"`
     pub shape: Option<String>,
-    /// The pixel area each the point/circle/square.
-    /// For example: in the case of circles, the radius is determined in part by the square root
-    /// of the size value.
+    /// Default size for marks.
+    /// - For `point`/`circle`/`square`, this represents the pixel area of the marks. For
+    /// example: in the case of circles, the radius is determined in part by the square root of
+    /// the size value.
+    /// - For `bar`, this represents the band size of the bar, in pixels.
+    /// - For `text`, this represents the font size, in pixels.
     ///
-    /// __Default value:__ `30`
+    /// __Default value:__ `30` for point, circle, square marks; `rangeStep` - 1 for bar marks
+    /// with discrete dimensions; `5` for bar marks with continuous dimensions; `11` for text
+    /// marks.
     pub size: Option<f64>,
     /// Default Stroke Color.  This has higher precedence than `config.color`
     ///
@@ -1510,8 +1478,69 @@ pub struct MarkConfig {
     /// `startAngle` and `endAngle` properties: angles are measured in radians, with `0`
     /// indicating "north".
     pub theta: Option<f64>,
-    /// The tooltip text to show upon mouse hover.
-    pub tooltip: Option<serde_json::Value>,
+    /// The tooltip text string to show upon mouse hover or an object defining which fields
+    /// should the tooltip be derived from.
+    ///
+    /// - If `tooltip` is `{"content": "encoding"}`, then all fields from `encoding` will be
+    /// used.
+    /// - If `tooltip` is `{"content": "data"}`, then all fields that appear in the highlighted
+    /// data point will be used.
+    pub tooltip: Option<PurpleTooltip>,
+}
+
+/// ErrorBand Config
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ErrorBandConfig {
+    pub band: Option<BooleanOrMarkConfig>,
+    pub borders: Option<BooleanOrMarkConfig>,
+    /// The extent of the band. Available options include:
+    /// - `"ci"`: Extend the band to the confidence interval of the mean.
+    /// - `"stderr"`: The size of band are set to the value of standard error, extending from the
+    /// mean.
+    /// - `"stdev"`: The size of band are set to the value of standard deviation, extending from
+    /// the mean.
+    /// - `"iqr"`: Extend the band to the q1 and q3.
+    ///
+    /// __Default value:__ `"stderr"`.
+    pub extent: Option<ErrorbandExtent>,
+    /// The line interpolation method for the error band. One of the following:
+    /// - `"linear"`: piecewise linear segments, as in a polyline.
+    /// - `"linear-closed"`: close the linear segments to form a polygon.
+    /// - `"step"`: alternate between horizontal and vertical segments, as in a step function.
+    /// - `"step-before"`: alternate between vertical and horizontal segments, as in a step
+    /// function.
+    /// - `"step-after"`: alternate between horizontal and vertical segments, as in a step
+    /// function.
+    /// - `"basis"`: a B-spline, with control point duplication on the ends.
+    /// - `"basis-open"`: an open B-spline; may not intersect the start or end.
+    /// - `"basis-closed"`: a closed B-spline, as in a loop.
+    /// - `"cardinal"`: a Cardinal spline, with control point duplication on the ends.
+    /// - `"cardinal-open"`: an open Cardinal spline; may not intersect the start or end, but
+    /// will intersect other control points.
+    /// - `"cardinal-closed"`: a closed Cardinal spline, as in a loop.
+    /// - `"bundle"`: equivalent to basis, except the tension parameter is used to straighten the
+    /// spline.
+    /// - `"monotone"`: cubic interpolation that preserves monotonicity in y.
+    pub interpolate: Option<Interpolate>,
+    /// The tension parameter for the interpolation type of the error band.
+    pub tension: Option<f64>,
+}
+
+/// ErrorBar Config
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ErrorBarConfig {
+    /// The extent of the rule. Available options include:
+    /// - `"ci"`: Extend the rule to the confidence interval of the mean.
+    /// - `"stderr"`: The size of rule are set to the value of standard error, extending from the
+    /// mean.
+    /// - `"stdev"`: The size of rule are set to the value of standard deviation, extending from
+    /// the mean.
+    /// - `"iqr"`: Extend the rule to the q1 and q3.
+    ///
+    /// __Default value:__ `"stderr"`.
+    pub extent: Option<ErrorbandExtent>,
+    pub rule: Option<BooleanOrMarkConfig>,
+    pub ticks: Option<BooleanOrMarkConfig>,
 }
 
 /// Header configuration, which determines default properties for all
@@ -1522,7 +1551,7 @@ pub struct MarkConfig {
 pub struct HeaderConfig {
     /// The rotation angle of the header labels.
     ///
-    /// __Default value:__ `0`.
+    /// __Default value:__ `0` for column header, `-90` for row header.
     #[serde(rename = "labelAngle")]
     pub label_angle: Option<f64>,
     /// The color of the header label, can be in hex color code or regular color name.
@@ -1540,6 +1569,12 @@ pub struct HeaderConfig {
     /// __Default value:__ `0`, indicating no limit
     #[serde(rename = "labelLimit")]
     pub label_limit: Option<f64>,
+    /// The orthogonal distance in pixels by which to displace the title from its position along
+    /// the edge of the chart.
+    ///
+    /// __Default value:__ `10`
+    #[serde(rename = "labelPadding")]
+    pub label_padding: Option<f64>,
     /// The anchor position for placing the title. One of `"start"`, `"middle"`, or `"end"`. For
     /// example, with an orientation of top these anchor positions map to a left-, center-, or
     /// right-aligned title.
@@ -1585,6 +1620,12 @@ pub struct HeaderConfig {
     /// __Default value:__ `0`, indicating no limit
     #[serde(rename = "titleLimit")]
     pub title_limit: Option<f64>,
+    /// The orthogonal distance in pixels by which to displace the title from its position along
+    /// the edge of the chart.
+    ///
+    /// __Default value:__ `10`
+    #[serde(rename = "titlePadding")]
+    pub title_padding: Option<f64>,
 }
 
 /// Legend configuration, which determines default properties for all
@@ -1593,42 +1634,77 @@ pub struct HeaderConfig {
 /// documentation](https://vega.github.io/vega-lite/docs/legend.html#config).
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LegendConfig {
+    /// The height in pixels to clip symbol legend entries and limit their size.
+    #[serde(rename = "clipHeight")]
+    pub clip_height: Option<f64>,
+    /// The horizontal padding in pixels between symbol legend entries.
+    ///
+    /// __Default value:__ `10`.
+    #[serde(rename = "columnPadding")]
+    pub column_padding: Option<f64>,
+    /// The number of columns in which to arrange symbol legend entries. A value of `0` or lower
+    /// indicates a single row with one column per entry.
+    pub columns: Option<f64>,
     /// Corner radius for the full legend.
     #[serde(rename = "cornerRadius")]
     pub corner_radius: Option<f64>,
-    /// Padding (in pixels) between legend entries in a symbol legend.
-    #[serde(rename = "entryPadding")]
-    pub entry_padding: Option<f64>,
     /// Background fill color for the full legend.
     #[serde(rename = "fillColor")]
     pub fill_color: Option<String>,
-    /// The height of the gradient, in pixels.
-    #[serde(rename = "gradientHeight")]
-    pub gradient_height: Option<f64>,
-    /// Text baseline for color ramp gradient labels.
-    #[serde(rename = "gradientLabelBaseline")]
-    pub gradient_label_baseline: Option<String>,
+    /// The default direction (`"horizontal"` or `"vertical"`) for gradient legends.
+    ///
+    /// __Default value:__ `"vertical"`.
+    #[serde(rename = "gradientDirection")]
+    pub gradient_direction: Option<Orient>,
     /// The maximum allowed length in pixels of color ramp gradient labels.
     #[serde(rename = "gradientLabelLimit")]
     pub gradient_label_limit: Option<f64>,
     /// Vertical offset in pixels for color ramp gradient labels.
+    ///
+    /// __Default value:__ `2`.
     #[serde(rename = "gradientLabelOffset")]
     pub gradient_label_offset: Option<f64>,
+    /// The length in pixels of the primary axis of a color gradient. This value corresponds to
+    /// the height of a vertical gradient or the width of a horizontal gradient.
+    ///
+    /// __Default value:__ `200`.
+    #[serde(rename = "gradientLength")]
+    pub gradient_length: Option<f64>,
+    /// Opacity of the color gradient.
+    #[serde(rename = "gradientOpacity")]
+    pub gradient_opacity: Option<f64>,
     /// The color of the gradient stroke, can be in hex color code or regular color name.
+    ///
+    /// __Default value:__ `"lightGray"`.
     #[serde(rename = "gradientStrokeColor")]
     pub gradient_stroke_color: Option<String>,
     /// The width of the gradient stroke, in pixels.
+    ///
+    /// __Default value:__ `0`.
     #[serde(rename = "gradientStrokeWidth")]
     pub gradient_stroke_width: Option<f64>,
-    /// The width of the gradient, in pixels.
-    #[serde(rename = "gradientWidth")]
-    pub gradient_width: Option<f64>,
-    /// The alignment of the legend label, can be left, middle or right.
+    /// The thickness in pixels of the color gradient. This value corresponds to the width of a
+    /// vertical gradient or the height of a horizontal gradient.
+    ///
+    /// __Default value:__ `16`.
+    #[serde(rename = "gradientThickness")]
+    pub gradient_thickness: Option<f64>,
+    /// The alignment to apply to symbol legends rows and columns. The supported string values
+    /// are `"all"`, `"each"` (the default), and `none`. For more information, see the [grid
+    /// layout documentation](https://vega.github.io/vega/docs/layout).
+    ///
+    /// __Default value:__ `"each"`.
+    #[serde(rename = "gridAlign")]
+    pub grid_align: Option<VgLayoutAlign>,
+    /// The alignment of the legend label, can be left, center, or right.
     #[serde(rename = "labelAlign")]
-    pub label_align: Option<String>,
-    /// The position of the baseline of legend label, can be top, middle or bottom.
+    pub label_align: Option<Align>,
+    /// The position of the baseline of legend label, can be `"top"`, `"middle"`, `"bottom"`, or
+    /// `"alphabetic"`.
+    ///
+    /// __Default value:__ `"middle"`.
     #[serde(rename = "labelBaseline")]
-    pub label_baseline: Option<String>,
+    pub label_baseline: Option<TextBaseline>,
     /// The color of the legend label, can be in hex color code or regular color name.
     #[serde(rename = "labelColor")]
     pub label_color: Option<String>,
@@ -1640,16 +1716,36 @@ pub struct LegendConfig {
     /// __Default value:__ `10`.
     #[serde(rename = "labelFontSize")]
     pub label_font_size: Option<f64>,
+    /// The font weight of legend label.
+    #[serde(rename = "labelFontWeight")]
+    pub label_font_weight: Option<FontWeight>,
     /// Maximum allowed pixel width of axis tick labels.
+    ///
+    /// __Default value:__ `160`.
     #[serde(rename = "labelLimit")]
     pub label_limit: Option<f64>,
     /// The offset of the legend label.
     #[serde(rename = "labelOffset")]
     pub label_offset: Option<f64>,
-    /// The offset, in pixels, by which to displace the legend from the edge of the enclosing
-    /// group or data rectangle.
+    /// Opacity of labels.
+    #[serde(rename = "labelOpacity")]
+    pub label_opacity: Option<f64>,
+    /// The strategy to use for resolving overlap of labels in gradient legends. If `false`, no
+    /// overlap reduction is attempted. If set to `true` (default) or `"parity"`, a strategy of
+    /// removing every other label is used. If set to `"greedy"`, a linear scan of the labels is
+    /// performed, removing any label that overlaps with the last visible label (this often works
+    /// better for log-scaled axes).
     ///
-    /// __Default value:__  `0`
+    /// __Default value:__ `"greedy"` for `log scales otherwise `true`.
+    /// *
+    #[serde(rename = "labelOverlap")]
+    pub label_overlap: Option<LabelOverlap>,
+    /// Padding in pixels between the legend and legend labels.
+    #[serde(rename = "labelPadding")]
+    pub label_padding: Option<f64>,
+    /// The offset in pixels by which to displace the legend from the data rectangle and axes.
+    ///
+    /// __Default value:__ `18`.
     pub offset: Option<f64>,
     /// The orientation of the legend, which determines how the legend is positioned within the
     /// scene. One of "left", "right", "top-left", "top-right", "bottom-left", "bottom-right",
@@ -1657,8 +1753,15 @@ pub struct LegendConfig {
     ///
     /// __Default value:__ `"right"`
     pub orient: Option<LegendOrient>,
-    /// The padding, in pixels, between the legend and axis.
+    /// The padding between the border and content of the legend group.
+    ///
+    /// __Default value:__ `0`.
     pub padding: Option<f64>,
+    /// The vertical padding in pixels between symbol legend entries.
+    ///
+    /// __Default value:__ `2`.
+    #[serde(rename = "rowPadding")]
+    pub row_padding: Option<f64>,
     /// Whether month names and weekday names should be abbreviated.
     ///
     /// __Default value:__  `false`
@@ -1673,24 +1776,67 @@ pub struct LegendConfig {
     /// Border stroke width for the full legend.
     #[serde(rename = "strokeWidth")]
     pub stroke_width: Option<f64>,
+    /// Default fill color for legend symbols. Only applied if there is no `"fill"` scale color
+    /// encoding for the legend.
+    ///
+    /// __Default value:__ `"transparent"`.
+    #[serde(rename = "symbolBaseFillColor")]
+    pub symbol_base_fill_color: Option<String>,
+    /// Default stroke color for legend symbols. Only applied if there is no `"fill"` scale color
+    /// encoding for the legend.
+    ///
+    /// __Default value:__ `"gray"`.
+    #[serde(rename = "symbolBaseStrokeColor")]
+    pub symbol_base_stroke_color: Option<String>,
+    /// The default direction (`"horizontal"` or `"vertical"`) for symbol legends.
+    ///
+    /// __Default value:__ `"vertical"`.
+    #[serde(rename = "symbolDirection")]
+    pub symbol_direction: Option<Orient>,
     /// The color of the legend symbol,
-    #[serde(rename = "symbolColor")]
-    pub symbol_color: Option<String>,
+    #[serde(rename = "symbolFillColor")]
+    pub symbol_fill_color: Option<String>,
+    /// Horizontal pixel offset for legend symbols.
+    ///
+    /// __Default value:__ `0`.
+    #[serde(rename = "symbolOffset")]
+    pub symbol_offset: Option<f64>,
+    /// Opacity of the legend symbols.
+    #[serde(rename = "symbolOpacity")]
+    pub symbol_opacity: Option<f64>,
     /// The size of the legend symbol, in pixels.
+    ///
+    /// __Default value:__ `100`.
     #[serde(rename = "symbolSize")]
     pub symbol_size: Option<f64>,
+    /// Stroke color for legend symbols.
+    #[serde(rename = "symbolStrokeColor")]
+    pub symbol_stroke_color: Option<String>,
     /// The width of the symbol's stroke.
+    ///
+    /// __Default value:__ `1.5`.
     #[serde(rename = "symbolStrokeWidth")]
     pub symbol_stroke_width: Option<f64>,
     /// Default shape type (such as "circle") for legend symbols.
+    /// Can be one of ``"circle"`, `"square"`, `"cross"`, `"diamond"`, `"triangle-up"`,
+    /// `"triangle-down"`, `"triangle-right"`, or `"triangle-left"`.
+    /// * In addition to a set of built-in shapes, custom shapes can be defined using [SVG path
+    /// strings](https://developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Paths).
+    /// *
+    /// * __Default value:__ `"circle"`.
+    /// *
     #[serde(rename = "symbolType")]
     pub symbol_type: Option<String>,
     /// Horizontal text alignment for legend titles.
+    ///
+    /// __Default value:__ `"left"`.
     #[serde(rename = "titleAlign")]
-    pub title_align: Option<String>,
+    pub title_align: Option<Align>,
     /// Vertical text baseline for legend titles.
+    ///
+    /// __Default value:__ `"top"`.
     #[serde(rename = "titleBaseline")]
-    pub title_baseline: Option<String>,
+    pub title_baseline: Option<TextBaseline>,
     /// The color of the legend title, can be in hex color code or regular color name.
     #[serde(rename = "titleColor")]
     pub title_color: Option<String>,
@@ -1706,9 +1852,16 @@ pub struct LegendConfig {
     #[serde(rename = "titleFontWeight")]
     pub title_font_weight: Option<FontWeight>,
     /// Maximum allowed pixel width of axis titles.
+    ///
+    /// __Default value:__ `180`.
     #[serde(rename = "titleLimit")]
     pub title_limit: Option<f64>,
+    /// Opacity of the legend title.
+    #[serde(rename = "titleOpacity")]
+    pub title_opacity: Option<f64>,
     /// The padding, in pixels, between title and legend.
+    ///
+    /// __Default value:__ `5`.
     #[serde(rename = "titlePadding")]
     pub title_padding: Option<f64>,
 }
@@ -1719,13 +1872,13 @@ pub struct LegendConfig {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct LineConfig {
     /// The horizontal alignment of the text. One of `"left"`, `"right"`, `"center"`.
-    pub align: Option<HorizontalAlign>,
+    pub align: Option<Align>,
     /// The rotation angle of the text, in degrees.
     pub angle: Option<f64>,
     /// The vertical alignment of the text. One of `"top"`, `"middle"`, `"bottom"`.
     ///
     /// __Default value:__ `"middle"`
-    pub baseline: Option<VerticalAlign>,
+    pub baseline: Option<TextBaseline>,
     /// Default color.  Note that `fill` and `stroke` have higher precedence than `color` and
     /// will override `color`.
     ///
@@ -1852,11 +2005,16 @@ pub struct LineConfig {
     ///
     /// __Default value:__ `"circle"`
     pub shape: Option<String>,
-    /// The pixel area each the point/circle/square.
-    /// For example: in the case of circles, the radius is determined in part by the square root
-    /// of the size value.
+    /// Default size for marks.
+    /// - For `point`/`circle`/`square`, this represents the pixel area of the marks. For
+    /// example: in the case of circles, the radius is determined in part by the square root of
+    /// the size value.
+    /// - For `bar`, this represents the band size of the bar, in pixels.
+    /// - For `text`, this represents the font size, in pixels.
     ///
-    /// __Default value:__ `30`
+    /// __Default value:__ `30` for point, circle, square marks; `rangeStep` - 1 for bar marks
+    /// with discrete dimensions; `5` for bar marks with continuous dimensions; `11` for text
+    /// marks.
     pub size: Option<f64>,
     /// Default Stroke Color.  This has higher precedence than `config.color`
     ///
@@ -1898,8 +2056,14 @@ pub struct LineConfig {
     /// `startAngle` and `endAngle` properties: angles are measured in radians, with `0`
     /// indicating "north".
     pub theta: Option<f64>,
-    /// The tooltip text to show upon mouse hover.
-    pub tooltip: Option<serde_json::Value>,
+    /// The tooltip text string to show upon mouse hover or an object defining which fields
+    /// should the tooltip be derived from.
+    ///
+    /// - If `tooltip` is `{"content": "encoding"}`, then all fields from `encoding` will be
+    /// used.
+    /// - If `tooltip` is `{"content": "data"}`, then all fields that appear in the highlighted
+    /// data point will be used.
+    pub tooltip: Option<PurpleTooltip>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -1916,8 +2080,14 @@ pub struct PaddingClass {
 /// documentation](https://vega.github.io/vega-lite/docs/projection.html#config).
 ///
 /// Any property of Projection can be in config
+///
+/// An object defining properties of geographic projection, which will be applied to `shape`
+/// path for `"geoshape"` marks
+/// and to `latitude` and `"longitude"` channels for other marks.
+///
+/// An object defining properties of the geographic projection shared by underlying layers.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct ProjectionConfig {
+pub struct Projection {
     /// Sets the projection’s center to the specified center, a two-element array of longitude
     /// and latitude in degrees.
     ///
@@ -1945,7 +2115,7 @@ pub struct ProjectionConfig {
     /// distance](http://en.wikipedia.org/wiki/Ramer%E2%80%93Douglas%E2%80%93Peucker_algorithm).
     /// If precision is not specified, returns the projection’s current resampling precision
     /// which defaults to `√0.5 ≅ 0.70710…`.
-    pub precision: Option<HashMap<String, PrecisionValue>>,
+    pub precision: Option<String>,
     pub radius: Option<f64>,
     pub ratio: Option<f64>,
     /// Sets the projection’s three-axis rotation to the specified angles, which must be a two-
@@ -1963,7 +2133,7 @@ pub struct ProjectionConfig {
     ///
     /// __Default value:__ `mercator`
     #[serde(rename = "type")]
-    pub projection_config_type: Option<VgProjectionType>,
+    pub projection_type: Option<VgProjectionType>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -2055,6 +2225,18 @@ pub struct ScaleConfig {
     /// __Default value:__ `0.5`
     #[serde(rename = "pointPadding")]
     pub point_padding: Option<f64>,
+    /// Default range cardinality for
+    /// [`quantile`](https://vega.github.io/vega-lite/docs/scale.html#quantile) scale.
+    ///
+    /// __Default value:__ `4`
+    #[serde(rename = "quantileCount")]
+    pub quantile_count: Option<f64>,
+    /// Default range cardinality for
+    /// [`quantize`](https://vega.github.io/vega-lite/docs/scale.html#quantize) scale.
+    ///
+    /// __Default value:__ `4`
+    #[serde(rename = "quantizeCount")]
+    pub quantize_count: Option<f64>,
     /// Default range step for band and point scales of (1) the `y` channel
     /// and (2) the `x` channel when the mark is not `text`.
     ///
@@ -2303,13 +2485,13 @@ pub struct VgBinding {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct VgMarkConfig {
     /// The horizontal alignment of the text. One of `"left"`, `"right"`, `"center"`.
-    pub align: Option<HorizontalAlign>,
+    pub align: Option<Align>,
     /// The rotation angle of the text, in degrees.
     pub angle: Option<f64>,
     /// The vertical alignment of the text. One of `"top"`, `"middle"`, `"bottom"`.
     ///
     /// __Default value:__ `"middle"`
-    pub baseline: Option<VerticalAlign>,
+    pub baseline: Option<TextBaseline>,
     /// The radius in pixels of rounded rectangle corners.
     ///
     /// __Default value:__ `0`
@@ -2459,13 +2641,13 @@ pub struct VgMarkConfig {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TextConfig {
     /// The horizontal alignment of the text. One of `"left"`, `"right"`, `"center"`.
-    pub align: Option<HorizontalAlign>,
+    pub align: Option<Align>,
     /// The rotation angle of the text, in degrees.
     pub angle: Option<f64>,
     /// The vertical alignment of the text. One of `"top"`, `"middle"`, `"bottom"`.
     ///
     /// __Default value:__ `"middle"`
-    pub baseline: Option<VerticalAlign>,
+    pub baseline: Option<TextBaseline>,
     /// Default color.  Note that `fill` and `stroke` have higher precedence than `color` and
     /// will override `color`.
     ///
@@ -2581,11 +2763,16 @@ pub struct TextConfig {
     /// Whether month names and weekday names should be abbreviated.
     #[serde(rename = "shortTimeLabels")]
     pub short_time_labels: Option<bool>,
-    /// The pixel area each the point/circle/square.
-    /// For example: in the case of circles, the radius is determined in part by the square root
-    /// of the size value.
+    /// Default size for marks.
+    /// - For `point`/`circle`/`square`, this represents the pixel area of the marks. For
+    /// example: in the case of circles, the radius is determined in part by the square root of
+    /// the size value.
+    /// - For `bar`, this represents the band size of the bar, in pixels.
+    /// - For `text`, this represents the font size, in pixels.
     ///
-    /// __Default value:__ `30`
+    /// __Default value:__ `30` for point, circle, square marks; `rangeStep` - 1 for bar marks
+    /// with discrete dimensions; `5` for bar marks with continuous dimensions; `11` for text
+    /// marks.
     pub size: Option<f64>,
     /// Default Stroke Color.  This has higher precedence than `config.color`
     ///
@@ -2627,15 +2814,21 @@ pub struct TextConfig {
     /// `startAngle` and `endAngle` properties: angles are measured in radians, with `0`
     /// indicating "north".
     pub theta: Option<f64>,
-    /// The tooltip text to show upon mouse hover.
-    pub tooltip: Option<serde_json::Value>,
+    /// The tooltip text string to show upon mouse hover or an object defining which fields
+    /// should the tooltip be derived from.
+    ///
+    /// - If `tooltip` is `{"content": "encoding"}`, then all fields from `encoding` will be
+    /// used.
+    /// - If `tooltip` is `{"content": "data"}`, then all fields that appear in the highlighted
+    /// data point will be used.
+    pub tooltip: Option<PurpleTooltip>,
 }
 
 /// Tick-Specific Config
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TickConfig {
     /// The horizontal alignment of the text. One of `"left"`, `"right"`, `"center"`.
-    pub align: Option<HorizontalAlign>,
+    pub align: Option<Align>,
     /// The rotation angle of the text, in degrees.
     pub angle: Option<f64>,
     /// The width of the ticks.
@@ -2646,7 +2839,7 @@ pub struct TickConfig {
     /// The vertical alignment of the text. One of `"top"`, `"middle"`, `"bottom"`.
     ///
     /// __Default value:__ `"middle"`
-    pub baseline: Option<VerticalAlign>,
+    pub baseline: Option<TextBaseline>,
     /// Default color.  Note that `fill` and `stroke` have higher precedence than `color` and
     /// will override `color`.
     ///
@@ -2759,11 +2952,16 @@ pub struct TickConfig {
     ///
     /// __Default value:__ `"circle"`
     pub shape: Option<String>,
-    /// The pixel area each the point/circle/square.
-    /// For example: in the case of circles, the radius is determined in part by the square root
-    /// of the size value.
+    /// Default size for marks.
+    /// - For `point`/`circle`/`square`, this represents the pixel area of the marks. For
+    /// example: in the case of circles, the radius is determined in part by the square root of
+    /// the size value.
+    /// - For `bar`, this represents the band size of the bar, in pixels.
+    /// - For `text`, this represents the font size, in pixels.
     ///
-    /// __Default value:__ `30`
+    /// __Default value:__ `30` for point, circle, square marks; `rangeStep` - 1 for bar marks
+    /// with discrete dimensions; `5` for bar marks with continuous dimensions; `11` for text
+    /// marks.
     pub size: Option<f64>,
     /// Default Stroke Color.  This has higher precedence than `config.color`
     ///
@@ -2809,8 +3007,14 @@ pub struct TickConfig {
     ///
     /// __Default value:__  `1`
     pub thickness: Option<f64>,
-    /// The tooltip text to show upon mouse hover.
-    pub tooltip: Option<serde_json::Value>,
+    /// The tooltip text string to show upon mouse hover or an object defining which fields
+    /// should the tooltip be derived from.
+    ///
+    /// - If `tooltip` is `{"content": "encoding"}`, then all fields from `encoding` will be
+    /// used.
+    /// - If `tooltip` is `{"content": "data"}`, then all fields that appear in the highlighted
+    /// data point will be used.
+    pub tooltip: Option<PurpleTooltip>,
 }
 
 /// Title configuration, which determines default properties for all
@@ -2819,24 +3023,16 @@ pub struct TickConfig {
 /// documentation](https://vega.github.io/vega-lite/docs/title.html#config).
 #[derive(Debug, Serialize, Deserialize)]
 pub struct VgTitleConfig {
+    pub align: Option<Align>,
     /// The anchor position for placing the title. One of `"start"`, `"middle"`, or `"end"`. For
     /// example, with an orientation of top these anchor positions map to a left-, center-, or
     /// right-aligned title.
-    ///
-    /// __Default value:__ `"middle"` for
-    /// [single](https://vega.github.io/vega-lite/docs/spec.html) and
-    /// [layered](https://vega.github.io/vega-lite/docs/layer.html) views.
-    /// `"start"` for other composite views.
-    ///
-    /// __Note:__ [For now](https://github.com/vega/vega-lite/issues/2875), `anchor` is only
-    /// customizable only for [single](https://vega.github.io/vega-lite/docs/spec.html) and
-    /// [layered](https://vega.github.io/vega-lite/docs/layer.html) views.  For other composite
-    /// views, `anchor` is always `"start"`.
-    pub anchor: Option<Anchor>,
+    pub anchor: Option<TitleAnchor>,
     /// Angle in degrees of title text.
     pub angle: Option<f64>,
-    /// Vertical text baseline for title text.
-    pub baseline: Option<VerticalAlign>,
+    /// Vertical text baseline for title text. One of `"top"`, `"middle"`, `"bottom"`, or
+    /// `"alphabetic"`.
+    pub baseline: Option<TextBaseline>,
     /// Text color for title text.
     pub color: Option<String>,
     /// Font name for title text.
@@ -2851,12 +3047,16 @@ pub struct VgTitleConfig {
     /// ..., `900` where `"normal"` = `400` and `"bold"` = `700`).
     #[serde(rename = "fontWeight")]
     pub font_weight: Option<FontWeight>,
+    /// The reference frame for the anchor position, one of `"bounds"` (to anchor relative to the
+    /// full bounding box) or `"group"` (to anchor relative to the group width or height).
+    pub frame: Option<TitleFrame>,
     /// The maximum allowed length in pixels of legend labels.
     pub limit: Option<f64>,
-    /// Offset in pixels of the title from the chart body and axes.
+    /// The orthogonal offset in pixels by which to displace the title from its position along
+    /// the edge of the chart.
     pub offset: Option<f64>,
-    /// Default title orientation ("top", "bottom", "left", or "right")
-    pub orient: Option<TitleOrient>,
+    /// Default title orientation (`"top"`, `"bottom"`, `"left"`, or `"right"`)
+    pub orient: Option<LegendOrient>,
 }
 
 /// Default properties for [single view
@@ -2943,8 +3143,6 @@ pub struct Data {
 /// An object that specifies the format for parsing the data.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DataFormat {
-    /// If set to `"auto"` (the default), perform automatic type inference to determine the
-    /// desired data types.
     /// If set to `null`, disable type inference based on the spec and only use type inference
     /// based on the data.
     /// Alternatively, a parsing directive object can be provided for explicit data types. Each
@@ -2959,7 +3157,7 @@ pub struct DataFormat {
     /// [d3-time-format syntax](https://github.com/d3/d3-time-format#locale_format). UTC date
     /// format parsing is supported similarly (e.g., `{foo: 'utc:"%m%d%Y"'}`). See more about
     /// [UTC time](https://vega.github.io/vega-lite/docs/timeunit.html#utc)
-    pub parse: Option<Parse>,
+    pub parse: Option<HashMap<String, Option<String>>>,
     /// Type of input data: `"json"`, `"csv"`, `"tsv"`, `"dsv"`.
     /// The default format type is determined by the extension of the file URL.
     /// If no extension is detected, `"json"` will be used by default.
@@ -3086,7 +3284,7 @@ pub struct Encoding {
     /// Text of the `text` mark.
     pub text: Option<TextClass>,
     /// The tooltip text to show upon mouse hover.
-    pub tooltip: Option<Tooltip>,
+    pub tooltip: Option<EncodingTooltip>,
     /// X coordinates of the marks, or width of horizontal `"bar"` and `"area"`.
     pub x: Option<XClass>,
     /// X2 coordinates for ranged `"area"`, `"bar"`, `"rect"`, and  `"rule"`.
@@ -3167,13 +3365,23 @@ pub struct MarkPropDefWithCondition {
     ///
     /// __Default value:__ `undefined` (None)
     pub aggregate: Option<AggregateOp>,
-    /// A flag for binning a `quantitative` field, or [an object defining binning
-    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params).
-    /// If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
+    /// A flag for binning a `quantitative` field, [an object defining binning
+    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params), or indicating that
+    /// the data for `x` or `y` channel are binned before they are imported into Vega-Lite
+    /// (`"binned"`).
+    ///
+    /// - If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
     /// will be applied.
     ///
+    /// - To indicate that the data for the `x` (or `y`) channel are already binned, you can set
+    /// the `bin` property of the `x` (or `y`) channel to `"binned"` and map the bin-start field
+    /// to `x` (or `y`) and the bin-end field to `x2` (or `y2`). The scale and axis will be
+    /// formatted similar to binning in Vega-lite.  To adjust the axis ticks based on the bin
+    /// step, you can also set the axis's
+    /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
+    ///
     /// __Default value:__ `false`
-    pub bin: Option<Bin>,
+    pub bin: Option<PurpleBin>,
     /// One or more value definition(s) with a selection predicate.
     ///
     /// __Note:__ A field definition's `condition` property can only contain [value
@@ -3267,7 +3475,7 @@ pub struct MarkPropDefWithCondition {
     #[serde(rename = "type")]
     pub mark_prop_def_with_condition_type: Option<Type>,
     /// A constant value in visual domain.
-    pub value: Option<PurpleValue>,
+    pub value: Option<Value>,
 }
 
 /// Binning properties or boolean flag for determining whether to bin data or not.
@@ -3314,7 +3522,7 @@ pub struct ConditionalValueDef {
     pub test: Box<Option<Box<PurpleLogicalOperandPredicate>>>,
     /// A constant value in visual domain (e.g., `"red"` / "#0099ff" for color, values between
     /// `0` to `1` for opacity).
-    pub value: ConditionalValueDefValue,
+    pub value: Option<Value>,
     /// A [selection name](https://vega.github.io/vega-lite/docs/selection.html), or a series of
     /// [composed selections](https://vega.github.io/vega-lite/docs/selection.html#compose).
     pub selection: Box<Option<Box<PurpleSelectionOperand>>>,
@@ -3341,7 +3549,7 @@ pub struct Predicate {
     pub time_unit: Option<TimeUnit>,
     /// An array of inclusive minimum and maximum values
     /// for a field value of a data item to be included in the filtered data.
-    pub range: Option<Vec<Option<RangeElement>>>,
+    pub range: Option<Vec<Option<PurpleRange>>>,
     /// A set of values that the `field`'s value should be a member of,
     /// for a data item included in the filtered data.
     #[serde(rename = "oneOf")]
@@ -3354,6 +3562,9 @@ pub struct Predicate {
     pub lte: Option<Lt>,
     /// The value that the field should be greater than or equals to.
     pub gte: Option<Lt>,
+    /// If set to true the field's value has to be valid, meaning both not `null` and not
+    /// [`NaN`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/NaN).
+    pub valid: Option<bool>,
     /// Filter using a selection name.
     pub selection: Box<Option<Box<PurpleSelectionOperand>>>,
 }
@@ -3398,7 +3609,7 @@ pub struct ConditionalPredicateMarkPropFieldDefClass {
     pub test: Box<Option<Box<PurpleLogicalOperandPredicate>>>,
     /// A constant value in visual domain (e.g., `"red"` / "#0099ff" for color, values between
     /// `0` to `1` for opacity).
-    pub value: Option<PurpleValue>,
+    pub value: Option<Value>,
     /// A [selection name](https://vega.github.io/vega-lite/docs/selection.html), or a series of
     /// [composed selections](https://vega.github.io/vega-lite/docs/selection.html#compose).
     pub selection: Box<Option<Box<PurpleSelectionOperand>>>,
@@ -3407,13 +3618,23 @@ pub struct ConditionalPredicateMarkPropFieldDefClass {
     ///
     /// __Default value:__ `undefined` (None)
     pub aggregate: Option<AggregateOp>,
-    /// A flag for binning a `quantitative` field, or [an object defining binning
-    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params).
-    /// If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
+    /// A flag for binning a `quantitative` field, [an object defining binning
+    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params), or indicating that
+    /// the data for `x` or `y` channel are binned before they are imported into Vega-Lite
+    /// (`"binned"`).
+    ///
+    /// - If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
     /// will be applied.
     ///
+    /// - To indicate that the data for the `x` (or `y`) channel are already binned, you can set
+    /// the `bin` property of the `x` (or `y`) channel to `"binned"` and map the bin-start field
+    /// to `x` (or `y`) and the bin-end field to `x2` (or `y2`). The scale and axis will be
+    /// formatted similar to binning in Vega-lite.  To adjust the axis ticks based on the bin
+    /// step, you can also set the axis's
+    /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
+    ///
     /// __Default value:__ `false`
-    pub bin: Option<Bin>,
+    pub bin: Option<PurpleBin>,
     /// __Required.__ A string defining the name of the field from which to pull a data value
     /// or an object defining iterated values from the
     /// [`repeat`](https://vega.github.io/vega-lite/docs/repeat.html) operator.
@@ -3509,9 +3730,25 @@ pub struct RepeatRef {
 /// Properties of a legend or boolean flag for determining whether to show it.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Legend {
-    /// Padding (in pixels) between legend entries in a symbol legend.
-    #[serde(rename = "entryPadding")]
-    pub entry_padding: Option<f64>,
+    /// The height in pixels to clip symbol legend entries and limit their size.
+    #[serde(rename = "clipHeight")]
+    pub clip_height: Option<f64>,
+    /// The horizontal padding in pixels between symbol legend entries.
+    ///
+    /// __Default value:__ `10`.
+    #[serde(rename = "columnPadding")]
+    pub column_padding: Option<f64>,
+    /// The number of columns in which to arrange symbol legend entries. A value of `0` or lower
+    /// indicates a single row with one column per entry.
+    pub columns: Option<f64>,
+    /// Corner radius for the full legend.
+    #[serde(rename = "cornerRadius")]
+    pub corner_radius: Option<f64>,
+    /// The direction of the legend, one of `"vertical"` (default) or `"horizontal"`.
+    pub direction: Option<Orient>,
+    /// Background fill color for the full legend.
+    #[serde(rename = "fillColor")]
+    pub fill_color: Option<String>,
     /// The formatting pattern for labels. This is D3's [number format
     /// pattern](https://github.com/d3/d3-format#locale_format) for quantitative fields and D3's
     /// [time format pattern](https://github.com/d3/d3-time-format#locale_format) for time
@@ -3526,10 +3763,87 @@ pub struct Legend {
     /// [timeFormat](https://vega.github.io/vega-lite/docs/config.html#format) config for
     /// temporal fields.
     pub format: Option<String>,
-    /// The offset, in pixels, by which to displace the legend from the edge of the enclosing
-    /// group or data rectangle.
+    /// The length in pixels of the primary axis of a color gradient. This value corresponds to
+    /// the height of a vertical gradient or the width of a horizontal gradient.
     ///
-    /// __Default value:__  `0`
+    /// __Default value:__ `200`.
+    #[serde(rename = "gradientLength")]
+    pub gradient_length: Option<f64>,
+    /// Opacity of the color gradient.
+    #[serde(rename = "gradientOpacity")]
+    pub gradient_opacity: Option<f64>,
+    /// The color of the gradient stroke, can be in hex color code or regular color name.
+    ///
+    /// __Default value:__ `"lightGray"`.
+    #[serde(rename = "gradientStrokeColor")]
+    pub gradient_stroke_color: Option<String>,
+    /// The width of the gradient stroke, in pixels.
+    ///
+    /// __Default value:__ `0`.
+    #[serde(rename = "gradientStrokeWidth")]
+    pub gradient_stroke_width: Option<f64>,
+    /// The thickness in pixels of the color gradient. This value corresponds to the width of a
+    /// vertical gradient or the height of a horizontal gradient.
+    ///
+    /// __Default value:__ `16`.
+    #[serde(rename = "gradientThickness")]
+    pub gradient_thickness: Option<f64>,
+    /// The alignment to apply to symbol legends rows and columns. The supported string values
+    /// are `"all"`, `"each"` (the default), and `none`. For more information, see the [grid
+    /// layout documentation](https://vega.github.io/vega/docs/layout).
+    ///
+    /// __Default value:__ `"each"`.
+    #[serde(rename = "gridAlign")]
+    pub grid_align: Option<VgLayoutAlign>,
+    /// The alignment of the legend label, can be left, center, or right.
+    #[serde(rename = "labelAlign")]
+    pub label_align: Option<Align>,
+    /// The position of the baseline of legend label, can be `"top"`, `"middle"`, `"bottom"`, or
+    /// `"alphabetic"`.
+    ///
+    /// __Default value:__ `"middle"`.
+    #[serde(rename = "labelBaseline")]
+    pub label_baseline: Option<TextBaseline>,
+    /// The color of the legend label, can be in hex color code or regular color name.
+    #[serde(rename = "labelColor")]
+    pub label_color: Option<String>,
+    /// The font of the legend label.
+    #[serde(rename = "labelFont")]
+    pub label_font: Option<String>,
+    /// The font size of legend label.
+    ///
+    /// __Default value:__ `10`.
+    #[serde(rename = "labelFontSize")]
+    pub label_font_size: Option<f64>,
+    /// The font weight of legend label.
+    #[serde(rename = "labelFontWeight")]
+    pub label_font_weight: Option<FontWeight>,
+    /// Maximum allowed pixel width of axis tick labels.
+    ///
+    /// __Default value:__ `160`.
+    #[serde(rename = "labelLimit")]
+    pub label_limit: Option<f64>,
+    /// The offset of the legend label.
+    #[serde(rename = "labelOffset")]
+    pub label_offset: Option<f64>,
+    /// Opacity of labels.
+    #[serde(rename = "labelOpacity")]
+    pub label_opacity: Option<f64>,
+    /// The strategy to use for resolving overlap of labels in gradient legends. If `false`, no
+    /// overlap reduction is attempted. If set to `true` (default) or `"parity"`, a strategy of
+    /// removing every other label is used. If set to `"greedy"`, a linear scan of the labels is
+    /// performed, removing any label that overlaps with the last visible label (this often works
+    /// better for log-scaled axes).
+    ///
+    /// __Default value:__ `true`.
+    #[serde(rename = "labelOverlap")]
+    pub label_overlap: Option<LabelOverlap>,
+    /// Padding in pixels between the legend and legend labels.
+    #[serde(rename = "labelPadding")]
+    pub label_padding: Option<f64>,
+    /// The offset in pixels by which to displace the legend from the data rectangle and axes.
+    ///
+    /// __Default value:__ `18`.
     pub offset: Option<f64>,
     /// The orientation of the legend, which determines how the legend is positioned within the
     /// scene. One of "left", "right", "top-left", "top-right", "bottom-left", "bottom-right",
@@ -3537,8 +3851,55 @@ pub struct Legend {
     ///
     /// __Default value:__ `"right"`
     pub orient: Option<LegendOrient>,
-    /// The padding, in pixels, between the legend and axis.
+    /// The padding between the border and content of the legend group.
+    ///
+    /// __Default value:__ `0`.
     pub padding: Option<f64>,
+    /// The vertical padding in pixels between symbol legend entries.
+    ///
+    /// __Default value:__ `2`.
+    #[serde(rename = "rowPadding")]
+    pub row_padding: Option<f64>,
+    /// Border stroke color for the full legend.
+    #[serde(rename = "strokeColor")]
+    pub stroke_color: Option<String>,
+    /// Border stroke width for the full legend.
+    #[serde(rename = "strokeWidth")]
+    pub stroke_width: Option<f64>,
+    /// The color of the legend symbol,
+    #[serde(rename = "symbolFillColor")]
+    pub symbol_fill_color: Option<String>,
+    /// Horizontal pixel offset for legend symbols.
+    ///
+    /// __Default value:__ `0`.
+    #[serde(rename = "symbolOffset")]
+    pub symbol_offset: Option<f64>,
+    /// Opacity of the legend symbols.
+    #[serde(rename = "symbolOpacity")]
+    pub symbol_opacity: Option<f64>,
+    /// The size of the legend symbol, in pixels.
+    ///
+    /// __Default value:__ `100`.
+    #[serde(rename = "symbolSize")]
+    pub symbol_size: Option<f64>,
+    /// Stroke color for legend symbols.
+    #[serde(rename = "symbolStrokeColor")]
+    pub symbol_stroke_color: Option<String>,
+    /// The width of the symbol's stroke.
+    ///
+    /// __Default value:__ `1.5`.
+    #[serde(rename = "symbolStrokeWidth")]
+    pub symbol_stroke_width: Option<f64>,
+    /// Default shape type (such as "circle") for legend symbols.
+    /// Can be one of ``"circle"`, `"square"`, `"cross"`, `"diamond"`, `"triangle-up"`,
+    /// `"triangle-down"`, `"triangle-right"`, or `"triangle-left"`.
+    /// * In addition to a set of built-in shapes, custom shapes can be defined using [SVG path
+    /// strings](https://developer.mozilla.org/en-US/docs/Web/SVG/Tutorial/Paths).
+    /// *
+    /// * __Default value:__ `"circle"`.
+    /// *
+    #[serde(rename = "symbolType")]
+    pub symbol_type: Option<String>,
     /// The desired number of tick values for quantitative legends.
     #[serde(rename = "tickCount")]
     pub tick_count: Option<f64>,
@@ -3561,6 +3922,43 @@ pub struct Legend {
     /// 2) If both field definition's `title` and axis, header, or legend `title` are defined,
     /// axis/header/legend title will be used.
     pub title: Option<String>,
+    /// Horizontal text alignment for legend titles.
+    ///
+    /// __Default value:__ `"left"`.
+    #[serde(rename = "titleAlign")]
+    pub title_align: Option<Align>,
+    /// Vertical text baseline for legend titles.
+    ///
+    /// __Default value:__ `"top"`.
+    #[serde(rename = "titleBaseline")]
+    pub title_baseline: Option<TextBaseline>,
+    /// The color of the legend title, can be in hex color code or regular color name.
+    #[serde(rename = "titleColor")]
+    pub title_color: Option<String>,
+    /// The font of the legend title.
+    #[serde(rename = "titleFont")]
+    pub title_font: Option<String>,
+    /// The font size of the legend title.
+    #[serde(rename = "titleFontSize")]
+    pub title_font_size: Option<f64>,
+    /// The font weight of the legend title.
+    /// This can be either a string (e.g `"bold"`, `"normal"`) or a number (`100`, `200`, `300`,
+    /// ..., `900` where `"normal"` = `400` and `"bold"` = `700`).
+    #[serde(rename = "titleFontWeight")]
+    pub title_font_weight: Option<FontWeight>,
+    /// Maximum allowed pixel width of axis titles.
+    ///
+    /// __Default value:__ `180`.
+    #[serde(rename = "titleLimit")]
+    pub title_limit: Option<f64>,
+    /// Opacity of the legend title.
+    #[serde(rename = "titleOpacity")]
+    pub title_opacity: Option<f64>,
+    /// The padding, in pixels, between title and legend.
+    ///
+    /// __Default value:__ `5`.
+    #[serde(rename = "titlePadding")]
+    pub title_padding: Option<f64>,
     /// The type of the legend. Use `"symbol"` to create a discrete legend and `"gradient"` for a
     /// continuous color gradient.
     ///
@@ -3610,13 +4008,15 @@ pub struct Scale {
     /// The exponent of the `pow` scale.
     pub exponent: Option<f64>,
     /// The interpolation method for range values. By default, a general interpolator for
-    /// numbers, dates, strings and colors (in RGB space) is used. For color ranges, this
+    /// numbers, dates, strings and colors (in HCL space) is used. For color ranges, this
     /// property allows interpolation in alternative color spaces. Legal values include `rgb`,
     /// `hsl`, `hsl-long`, `lab`, `hcl`, `hcl-long`, `cubehelix` and `cubehelix-long` ('-long'
     /// variants use longer paths in polar coordinate spaces). If object-valued, this property
     /// accepts an object with a string-valued _type_ property and an optional numeric _gamma_
     /// property applicable to rgb and cubehelix interpolators. For more, see the [d3-interpolate
     /// documentation](https://github.com/d3/d3-interpolate).
+    ///
+    /// * __Default value:__ `hcl`
     ///
     /// __Note:__ Sequential scales do not support `interpolate` as they have a fixed
     /// interpolator.  Since Vega-Lite uses sequential scales for quantitative fields by default,
@@ -3764,8 +4164,11 @@ pub struct Scale {
     /// 3) [**Discretizing
     /// Scales**](https://vega.github.io/vega-lite/docs/scale.html#discretizing) -- mapping
     /// continuous domains to discrete output ranges
-    /// ([`"bin-linear"`](https://vega.github.io/vega-lite/docs/scale.html#bin-linear) and
-    /// [`"bin-ordinal"`](https://vega.github.io/vega-lite/docs/scale.html#bin-ordinal)).
+    /// ([`"bin-linear"`](https://vega.github.io/vega-lite/docs/scale.html#bin-linear),
+    /// [`"bin-ordinal"`](https://vega.github.io/vega-lite/docs/scale.html#bin-ordinal),
+    /// [`"quantile"`](https://vega.github.io/vega-lite/docs/scale.html#quantile),
+    /// [`"quantize"`](https://vega.github.io/vega-lite/docs/scale.html#quantize) and
+    /// [`"threshold"`](https://vega.github.io/vega-lite/docs/scale.html#threshold).
     ///
     /// __Default value:__ please see the [scale type
     /// table](https://vega.github.io/vega-lite/docs/scale.html#type).
@@ -3809,6 +4212,10 @@ pub struct NiceClass {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SchemeParams {
+    /// The number of colors to use in the scheme. This can be useful for scale types such as
+    /// `"quantize"`, which use the length of the scale range to determine the number of discrete
+    /// bins for the scale domain.
+    pub count: Option<f64>,
     /// For sequential and diverging schemes only, determines the extent of the color range to
     /// use. For example `[0.2, 1]` will rescale the color scheme such that color values in the
     /// range _[0, 0.2)_ are excluded from the scheme.
@@ -3851,13 +4258,23 @@ pub struct FacetFieldDef {
     ///
     /// __Default value:__ `undefined` (None)
     pub aggregate: Option<AggregateOp>,
-    /// A flag for binning a `quantitative` field, or [an object defining binning
-    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params).
-    /// If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
+    /// A flag for binning a `quantitative` field, [an object defining binning
+    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params), or indicating that
+    /// the data for `x` or `y` channel are binned before they are imported into Vega-Lite
+    /// (`"binned"`).
+    ///
+    /// - If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
     /// will be applied.
     ///
+    /// - To indicate that the data for the `x` (or `y`) channel are already binned, you can set
+    /// the `bin` property of the `x` (or `y`) channel to `"binned"` and map the bin-start field
+    /// to `x` (or `y`) and the bin-end field to `x2` (or `y2`). The scale and axis will be
+    /// formatted similar to binning in Vega-lite.  To adjust the axis ticks based on the bin
+    /// step, you can also set the axis's
+    /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
+    ///
     /// __Default value:__ `false`
-    pub bin: Option<Bin>,
+    pub bin: Option<PurpleBin>,
     /// __Required.__ A string defining the name of the field from which to pull a data value
     /// or an object defining iterated values from the
     /// [`repeat`](https://vega.github.io/vega-lite/docs/repeat.html) operator.
@@ -3951,7 +4368,7 @@ pub struct Header {
     pub format: Option<String>,
     /// The rotation angle of the header labels.
     ///
-    /// __Default value:__ `0`.
+    /// __Default value:__ `0` for column header, `-90` for row header.
     #[serde(rename = "labelAngle")]
     pub label_angle: Option<f64>,
     /// The color of the header label, can be in hex color code or regular color name.
@@ -3969,6 +4386,12 @@ pub struct Header {
     /// __Default value:__ `0`, indicating no limit
     #[serde(rename = "labelLimit")]
     pub label_limit: Option<f64>,
+    /// The orthogonal distance in pixels by which to displace the title from its position along
+    /// the edge of the chart.
+    ///
+    /// __Default value:__ `10`
+    #[serde(rename = "labelPadding")]
+    pub label_padding: Option<f64>,
     /// A title for the field. If `null`, the title will be removed.
     ///
     /// __Default value:__  derived from the field's name and transformation function
@@ -4033,9 +4456,15 @@ pub struct Header {
     /// __Default value:__ `0`, indicating no limit
     #[serde(rename = "titleLimit")]
     pub title_limit: Option<f64>,
+    /// The orthogonal distance in pixels by which to displace the title from its position along
+    /// the edge of the chart.
+    ///
+    /// __Default value:__ `10`
+    #[serde(rename = "titlePadding")]
+    pub title_padding: Option<f64>,
 }
 
-/// Definition object for a data field, its type and transformation of an encoding channel.
+/// Field Def without scale (and without bin: "binned" support).
 ///
 /// A data field to use as a unique key for data binding. When a visualization’s data is
 /// updated, the key value will be used to match data elements to existing mark instances.
@@ -4057,13 +4486,23 @@ pub struct FieldDef {
     ///
     /// __Default value:__ `undefined` (None)
     pub aggregate: Option<AggregateOp>,
-    /// A flag for binning a `quantitative` field, or [an object defining binning
-    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params).
-    /// If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
+    /// A flag for binning a `quantitative` field, [an object defining binning
+    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params), or indicating that
+    /// the data for `x` or `y` channel are binned before they are imported into Vega-Lite
+    /// (`"binned"`).
+    ///
+    /// - If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
     /// will be applied.
     ///
+    /// - To indicate that the data for the `x` (or `y`) channel are already binned, you can set
+    /// the `bin` property of the `x` (or `y`) channel to `"binned"` and map the bin-start field
+    /// to `x` (or `y`) and the bin-end field to `x2` (or `y2`). The scale and axis will be
+    /// formatted similar to binning in Vega-lite.  To adjust the axis ticks based on the bin
+    /// step, you can also set the axis's
+    /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
+    ///
     /// __Default value:__ `false`
-    pub bin: Option<Bin>,
+    pub bin: Option<PurpleBin>,
     /// __Required.__ A string defining the name of the field from which to pull a data value
     /// or an object defining iterated values from the
     /// [`repeat`](https://vega.github.io/vega-lite/docs/repeat.html) operator.
@@ -4132,13 +4571,23 @@ pub struct DefWithCondition {
     ///
     /// __Default value:__ `undefined` (None)
     pub aggregate: Option<AggregateOp>,
-    /// A flag for binning a `quantitative` field, or [an object defining binning
-    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params).
-    /// If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
+    /// A flag for binning a `quantitative` field, [an object defining binning
+    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params), or indicating that
+    /// the data for `x` or `y` channel are binned before they are imported into Vega-Lite
+    /// (`"binned"`).
+    ///
+    /// - If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
     /// will be applied.
     ///
+    /// - To indicate that the data for the `x` (or `y`) channel are already binned, you can set
+    /// the `bin` property of the `x` (or `y`) channel to `"binned"` and map the bin-start field
+    /// to `x` (or `y`) and the bin-end field to `x2` (or `y2`). The scale and axis will be
+    /// formatted similar to binning in Vega-lite.  To adjust the axis ticks based on the bin
+    /// step, you can also set the axis's
+    /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
+    ///
     /// __Default value:__ `false`
-    pub bin: Option<Bin>,
+    pub bin: Option<PurpleBin>,
     /// One or more value definition(s) with a selection predicate.
     ///
     /// __Note:__ A field definition's `condition` property can only contain [value
@@ -4193,7 +4642,7 @@ pub struct DefWithCondition {
     #[serde(rename = "type")]
     pub def_with_condition_type: Option<Type>,
     /// A constant value in visual domain.
-    pub value: Option<PurpleValue>,
+    pub value: Option<Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -4201,7 +4650,7 @@ pub struct ConditionalPredicateFieldDefClass {
     pub test: Box<Option<Box<PurpleLogicalOperandPredicate>>>,
     /// A constant value in visual domain (e.g., `"red"` / "#0099ff" for color, values between
     /// `0` to `1` for opacity).
-    pub value: Option<PurpleValue>,
+    pub value: Option<Value>,
     /// A [selection name](https://vega.github.io/vega-lite/docs/selection.html), or a series of
     /// [composed selections](https://vega.github.io/vega-lite/docs/selection.html#compose).
     pub selection: Box<Option<Box<PurpleSelectionOperand>>>,
@@ -4210,13 +4659,23 @@ pub struct ConditionalPredicateFieldDefClass {
     ///
     /// __Default value:__ `undefined` (None)
     pub aggregate: Option<AggregateOp>,
-    /// A flag for binning a `quantitative` field, or [an object defining binning
-    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params).
-    /// If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
+    /// A flag for binning a `quantitative` field, [an object defining binning
+    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params), or indicating that
+    /// the data for `x` or `y` channel are binned before they are imported into Vega-Lite
+    /// (`"binned"`).
+    ///
+    /// - If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
     /// will be applied.
     ///
+    /// - To indicate that the data for the `x` (or `y`) channel are already binned, you can set
+    /// the `bin` property of the `x` (or `y`) channel to `"binned"` and map the bin-start field
+    /// to `x` (or `y`) and the bin-end field to `x2` (or `y2`). The scale and axis will be
+    /// formatted similar to binning in Vega-lite.  To adjust the axis ticks based on the bin
+    /// step, you can also set the axis's
+    /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
+    ///
     /// __Default value:__ `false`
-    pub bin: Option<Bin>,
+    pub bin: Option<PurpleBin>,
     /// __Required.__ A string defining the name of the field from which to pull a data value
     /// or an object defining iterated values from the
     /// [`repeat`](https://vega.github.io/vega-lite/docs/repeat.html) operator.
@@ -4271,13 +4730,23 @@ pub struct OrderFieldDef {
     ///
     /// __Default value:__ `undefined` (None)
     pub aggregate: Option<AggregateOp>,
-    /// A flag for binning a `quantitative` field, or [an object defining binning
-    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params).
-    /// If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
+    /// A flag for binning a `quantitative` field, [an object defining binning
+    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params), or indicating that
+    /// the data for `x` or `y` channel are binned before they are imported into Vega-Lite
+    /// (`"binned"`).
+    ///
+    /// - If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
     /// will be applied.
     ///
+    /// - To indicate that the data for the `x` (or `y`) channel are already binned, you can set
+    /// the `bin` property of the `x` (or `y`) channel to `"binned"` and map the bin-start field
+    /// to `x` (or `y`) and the bin-end field to `x2` (or `y2`). The scale and axis will be
+    /// formatted similar to binning in Vega-lite.  To adjust the axis ticks based on the bin
+    /// step, you can also set the axis's
+    /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
+    ///
     /// __Default value:__ `false`
-    pub bin: Option<Bin>,
+    pub bin: Option<PurpleBin>,
     /// __Required.__ A string defining the name of the field from which to pull a data value
     /// or an object defining iterated values from the
     /// [`repeat`](https://vega.github.io/vega-lite/docs/repeat.html) operator.
@@ -4329,19 +4798,29 @@ pub struct OrderFieldDef {
 
 /// Definition object for a constant value of an encoding channel.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Def {
+pub struct OrderFieldDefClass {
     /// Aggregation function for the field
     /// (e.g., `mean`, `sum`, `median`, `min`, `max`, `count`).
     ///
     /// __Default value:__ `undefined` (None)
     pub aggregate: Option<AggregateOp>,
-    /// A flag for binning a `quantitative` field, or [an object defining binning
-    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params).
-    /// If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
+    /// A flag for binning a `quantitative` field, [an object defining binning
+    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params), or indicating that
+    /// the data for `x` or `y` channel are binned before they are imported into Vega-Lite
+    /// (`"binned"`).
+    ///
+    /// - If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
     /// will be applied.
     ///
+    /// - To indicate that the data for the `x` (or `y`) channel are already binned, you can set
+    /// the `bin` property of the `x` (or `y`) channel to `"binned"` and map the bin-start field
+    /// to `x` (or `y`) and the bin-end field to `x2` (or `y2`). The scale and axis will be
+    /// formatted similar to binning in Vega-lite.  To adjust the axis ticks based on the bin
+    /// step, you can also set the axis's
+    /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
+    ///
     /// __Default value:__ `false`
-    pub bin: Option<Bin>,
+    pub bin: Option<PurpleBin>,
     /// __Required.__ A string defining the name of the field from which to pull a data value
     /// or an object defining iterated values from the
     /// [`repeat`](https://vega.github.io/vega-lite/docs/repeat.html) operator.
@@ -4391,7 +4870,7 @@ pub struct Def {
     pub def_type: Option<Type>,
     /// A constant value in visual domain (e.g., `"red"` / "#0099ff" for color, values between
     /// `0` to `1` for opacity).
-    pub value: Option<PurpleValue>,
+    pub value: Option<Value>,
 }
 
 /// Text of the `text` mark.
@@ -4415,13 +4894,23 @@ pub struct TextClass {
     ///
     /// __Default value:__ `undefined` (None)
     pub aggregate: Option<AggregateOp>,
-    /// A flag for binning a `quantitative` field, or [an object defining binning
-    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params).
-    /// If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
+    /// A flag for binning a `quantitative` field, [an object defining binning
+    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params), or indicating that
+    /// the data for `x` or `y` channel are binned before they are imported into Vega-Lite
+    /// (`"binned"`).
+    ///
+    /// - If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
     /// will be applied.
     ///
+    /// - To indicate that the data for the `x` (or `y`) channel are already binned, you can set
+    /// the `bin` property of the `x` (or `y`) channel to `"binned"` and map the bin-start field
+    /// to `x` (or `y`) and the bin-end field to `x2` (or `y2`). The scale and axis will be
+    /// formatted similar to binning in Vega-lite.  To adjust the axis ticks based on the bin
+    /// step, you can also set the axis's
+    /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
+    ///
     /// __Default value:__ `false`
-    pub bin: Option<Bin>,
+    pub bin: Option<PurpleBin>,
     /// One or more value definition(s) with a selection predicate.
     ///
     /// __Note:__ A field definition's `condition` property can only contain [value
@@ -4479,7 +4968,7 @@ pub struct TextClass {
     #[serde(rename = "type")]
     pub text_def_with_condition_type: Option<Type>,
     /// A constant value in visual domain.
-    pub value: Option<PurpleValue>,
+    pub value: Option<Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -4487,7 +4976,7 @@ pub struct ConditionalPredicateTextFieldDefClass {
     pub test: Box<Option<Box<PurpleLogicalOperandPredicate>>>,
     /// A constant value in visual domain (e.g., `"red"` / "#0099ff" for color, values between
     /// `0` to `1` for opacity).
-    pub value: Option<PurpleValue>,
+    pub value: Option<Value>,
     /// A [selection name](https://vega.github.io/vega-lite/docs/selection.html), or a series of
     /// [composed selections](https://vega.github.io/vega-lite/docs/selection.html#compose).
     pub selection: Box<Option<Box<PurpleSelectionOperand>>>,
@@ -4496,13 +4985,23 @@ pub struct ConditionalPredicateTextFieldDefClass {
     ///
     /// __Default value:__ `undefined` (None)
     pub aggregate: Option<AggregateOp>,
-    /// A flag for binning a `quantitative` field, or [an object defining binning
-    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params).
-    /// If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
+    /// A flag for binning a `quantitative` field, [an object defining binning
+    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params), or indicating that
+    /// the data for `x` or `y` channel are binned before they are imported into Vega-Lite
+    /// (`"binned"`).
+    ///
+    /// - If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
     /// will be applied.
     ///
+    /// - To indicate that the data for the `x` (or `y`) channel are already binned, you can set
+    /// the `bin` property of the `x` (or `y`) channel to `"binned"` and map the bin-start field
+    /// to `x` (or `y`) and the bin-end field to `x2` (or `y2`). The scale and axis will be
+    /// formatted similar to binning in Vega-lite.  To adjust the axis ticks based on the bin
+    /// step, you can also set the axis's
+    /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
+    ///
     /// __Default value:__ `false`
-    pub bin: Option<Bin>,
+    pub bin: Option<PurpleBin>,
     /// __Required.__ A string defining the name of the field from which to pull a data value
     /// or an object defining iterated values from the
     /// [`repeat`](https://vega.github.io/vega-lite/docs/repeat.html) operator.
@@ -4560,13 +5059,23 @@ pub struct TextFieldDef {
     ///
     /// __Default value:__ `undefined` (None)
     pub aggregate: Option<AggregateOp>,
-    /// A flag for binning a `quantitative` field, or [an object defining binning
-    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params).
-    /// If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
+    /// A flag for binning a `quantitative` field, [an object defining binning
+    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params), or indicating that
+    /// the data for `x` or `y` channel are binned before they are imported into Vega-Lite
+    /// (`"binned"`).
+    ///
+    /// - If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
     /// will be applied.
     ///
+    /// - To indicate that the data for the `x` (or `y`) channel are already binned, you can set
+    /// the `bin` property of the `x` (or `y`) channel to `"binned"` and map the bin-start field
+    /// to `x` (or `y`) and the bin-end field to `x2` (or `y2`). The scale and axis will be
+    /// formatted similar to binning in Vega-lite.  To adjust the axis ticks based on the bin
+    /// step, you can also set the axis's
+    /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
+    ///
     /// __Default value:__ `false`
-    pub bin: Option<Bin>,
+    pub bin: Option<PurpleBin>,
     /// __Required.__ A string defining the name of the field from which to pull a data value
     /// or an object defining iterated values from the
     /// [`repeat`](https://vega.github.io/vega-lite/docs/repeat.html) operator.
@@ -4636,13 +5145,23 @@ pub struct TextDefWithCondition {
     ///
     /// __Default value:__ `undefined` (None)
     pub aggregate: Option<AggregateOp>,
-    /// A flag for binning a `quantitative` field, or [an object defining binning
-    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params).
-    /// If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
+    /// A flag for binning a `quantitative` field, [an object defining binning
+    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params), or indicating that
+    /// the data for `x` or `y` channel are binned before they are imported into Vega-Lite
+    /// (`"binned"`).
+    ///
+    /// - If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
     /// will be applied.
     ///
+    /// - To indicate that the data for the `x` (or `y`) channel are already binned, you can set
+    /// the `bin` property of the `x` (or `y`) channel to `"binned"` and map the bin-start field
+    /// to `x` (or `y`) and the bin-end field to `x2` (or `y2`). The scale and axis will be
+    /// formatted similar to binning in Vega-lite.  To adjust the axis ticks based on the bin
+    /// step, you can also set the axis's
+    /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
+    ///
     /// __Default value:__ `false`
-    pub bin: Option<Bin>,
+    pub bin: Option<PurpleBin>,
     /// One or more value definition(s) with a selection predicate.
     ///
     /// __Note:__ A field definition's `condition` property can only contain [value
@@ -4700,7 +5219,7 @@ pub struct TextDefWithCondition {
     #[serde(rename = "type")]
     pub text_def_with_condition_type: Option<Type>,
     /// A constant value in visual domain.
-    pub value: Option<PurpleValue>,
+    pub value: Option<Value>,
 }
 
 /// X coordinates of the marks, or width of horizontal `"bar"` and `"area"`.
@@ -4721,13 +5240,23 @@ pub struct XClass {
     /// __Default value:__ If undefined, default [axis
     /// properties](https://vega.github.io/vega-lite/docs/axis.html) are applied.
     pub axis: Option<Axis>,
-    /// A flag for binning a `quantitative` field, or [an object defining binning
-    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params).
-    /// If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
+    /// A flag for binning a `quantitative` field, [an object defining binning
+    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params), or indicating that
+    /// the data for `x` or `y` channel are binned before they are imported into Vega-Lite
+    /// (`"binned"`).
+    ///
+    /// - If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
     /// will be applied.
     ///
+    /// - To indicate that the data for the `x` (or `y`) channel are already binned, you can set
+    /// the `bin` property of the `x` (or `y`) channel to `"binned"` and map the bin-start field
+    /// to `x` (or `y`) and the bin-end field to `x2` (or `y2`). The scale and axis will be
+    /// formatted similar to binning in Vega-lite.  To adjust the axis ticks based on the bin
+    /// step, you can also set the axis's
+    /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
+    ///
     /// __Default value:__ `false`
-    pub bin: Option<Bin>,
+    pub bin: Option<PurpleBin>,
     /// __Required.__ A string defining the name of the field from which to pull a data value
     /// or an object defining iterated values from the
     /// [`repeat`](https://vega.github.io/vega-lite/docs/repeat.html) operator.
@@ -4741,6 +5270,12 @@ pub struct XClass {
     ///
     /// __Note:__ `field` is not required if `aggregate` is `count`.
     pub field: Option<Field>,
+    /// An object defining the properties of the Impute Operation to be applied.
+    /// The field value of the other positional channel is taken as `key` of the `Impute`
+    /// Operation.
+    /// The field of the `color` channel if specified is used as `groupby` of the `Impute`
+    /// Operation.
+    pub impute: Option<ImputeParams>,
     /// An object defining properties of the channel's scale, which is the function that
     /// transforms values in the data domain (numbers, dates, strings, etc) to visual values
     /// (pixels, colors, sizes) of the encoding channels.
@@ -4830,16 +5365,36 @@ pub struct XClass {
     pub def_type: Option<Type>,
     /// A constant value in visual domain (e.g., `"red"` / "#0099ff" for color, values between
     /// `0` to `1` for opacity).
-    pub value: Option<PurpleValue>,
+    pub value: Option<Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Axis {
+    /// An interpolation fraction indicating where, for `band` scales, axis ticks should be
+    /// positioned. A value of `0` places ticks at the left edge of their bands. A value of `0.5`
+    /// places ticks in the middle of their bands.
+    ///
+    /// __Default value:__ `0.5`
+    #[serde(rename = "bandPosition")]
+    pub band_position: Option<f64>,
     /// A boolean flag indicating if the domain (the axis baseline) should be included as part of
     /// the axis.
     ///
     /// __Default value:__ `true`
     pub domain: Option<bool>,
+    /// Color of axis domain line.
+    ///
+    /// __Default value:__ `"gray"`.
+    #[serde(rename = "domainColor")]
+    pub domain_color: Option<String>,
+    /// Opacity of the axis domain line.
+    #[serde(rename = "domainOpacity")]
+    pub domain_opacity: Option<f64>,
+    /// Stroke width of axis domain line
+    ///
+    /// __Default value:__ `1`
+    #[serde(rename = "domainWidth")]
+    pub domain_width: Option<f64>,
     /// The formatting pattern for labels. This is D3's [number format
     /// pattern](https://github.com/d3/d3-format#locale_format) for quantitative fields and D3's
     /// [time format pattern](https://github.com/d3/d3-time-format#locale_format) for time
@@ -4860,13 +5415,39 @@ pub struct Axis {
     /// scales](https://vega.github.io/vega-lite/docs/scale.html#continuous) that are not binned;
     /// otherwise, `false`.
     pub grid: Option<bool>,
+    /// Color of gridlines.
+    ///
+    /// __Default value:__ `"lightGray"`.
+    #[serde(rename = "gridColor")]
+    pub grid_color: Option<String>,
+    /// The offset (in pixels) into which to begin drawing with the grid dash array.
+    #[serde(rename = "gridDash")]
+    pub grid_dash: Option<Vec<f64>>,
+    /// The stroke opacity of grid (value between [0,1])
+    ///
+    /// __Default value:__ `1`
+    #[serde(rename = "gridOpacity")]
+    pub grid_opacity: Option<f64>,
+    /// The grid width, in pixels.
+    ///
+    /// __Default value:__ `1`
+    #[serde(rename = "gridWidth")]
+    pub grid_width: Option<f64>,
+    /// Horizontal text alignment of axis tick labels, overriding the default setting for the
+    /// current axis orientation.
+    #[serde(rename = "labelAlign")]
+    pub label_align: Option<Align>,
     /// The rotation angle of the axis labels.
     ///
     /// __Default value:__ `-90` for nominal and ordinal fields; `0` otherwise.
     #[serde(rename = "labelAngle")]
     pub label_angle: Option<f64>,
-    /// Indicates if labels should be hidden if they exceed the axis range. If `false `(the
-    /// default) no bounds overlap analysis is performed. If `true`, labels will be hidden if
+    /// Vertical text baseline of axis tick labels, overriding the default setting for the
+    /// current axis orientation. Can be `"top"`, `"middle"`, `"bottom"`, or `"alphabetic"`.
+    #[serde(rename = "labelBaseline")]
+    pub label_baseline: Option<TextBaseline>,
+    /// Indicates if labels should be hidden if they exceed the axis range. If `false` (the
+    /// default) no bounds overlap analysis is performed. If `true`, labels will be hidden if
     /// they exceed the axis range by more than 1 pixel. If this property is a number, it
     /// specifies the pixel tolerance: the maximum amount by which a label bounding box may
     /// exceed the axis range.
@@ -4874,6 +5455,9 @@ pub struct Axis {
     /// __Default value:__ `false`.
     #[serde(rename = "labelBound")]
     pub label_bound: Option<Label>,
+    /// The color of the tick label, can be in hex color code or regular color name.
+    #[serde(rename = "labelColor")]
+    pub label_color: Option<String>,
     /// Indicates if the first and last axis labels should be aligned flush with the scale range.
     /// Flush alignment for a horizontal axis will left-align the first label and right-align the
     /// last label. For vertical axes, bottom and top text baselines are applied instead. If this
@@ -4885,6 +5469,30 @@ pub struct Axis {
     /// __Default value:__ `true` for axis of a continuous x-scale. Otherwise, `false`.
     #[serde(rename = "labelFlush")]
     pub label_flush: Option<Label>,
+    /// Indicates the number of pixels by which to offset flush-adjusted labels. For example, a
+    /// value of `2` will push flush-adjusted labels 2 pixels outward from the center of the
+    /// axis. Offsets can help the labels better visually group with corresponding axis ticks.
+    ///
+    /// __Default value:__ `0`.
+    #[serde(rename = "labelFlushOffset")]
+    pub label_flush_offset: Option<f64>,
+    /// The font of the tick label.
+    #[serde(rename = "labelFont")]
+    pub label_font: Option<String>,
+    /// The font size of the label, in pixels.
+    #[serde(rename = "labelFontSize")]
+    pub label_font_size: Option<f64>,
+    /// Font weight of axis tick labels.
+    #[serde(rename = "labelFontWeight")]
+    pub label_font_weight: Option<FontWeight>,
+    /// Maximum allowed pixel width of axis tick labels.
+    ///
+    /// __Default value:__ `180`
+    #[serde(rename = "labelLimit")]
+    pub label_limit: Option<f64>,
+    /// The opacity of the labels.
+    #[serde(rename = "labelOpacity")]
+    pub label_opacity: Option<f64>,
     /// The strategy to use for resolving overlap of axis labels. If `false` (the default), no
     /// overlap reduction is attempted. If set to `true` or `"parity"`, a strategy of removing
     /// every other label is used (this works well for standard linear axes). If set to
@@ -4894,13 +5502,15 @@ pub struct Axis {
     /// __Default value:__ `true` for non-nominal fields with non-log scales; `"greedy"` for log
     /// scales; otherwise `false`.
     #[serde(rename = "labelOverlap")]
-    pub label_overlap: Option<LabelOverlapUnion>,
+    pub label_overlap: Option<LabelOverlap>,
     /// The padding, in pixels, between axis and text labels.
+    ///
+    /// __Default value:__ `2`
     #[serde(rename = "labelPadding")]
     pub label_padding: Option<f64>,
     /// A boolean flag indicating if labels should be included as part of the axis.
     ///
-    /// __Default value:__  `true`.
+    /// __Default value:__ `true`.
     pub labels: Option<bool>,
     /// The maximum extent in pixels that axis ticks and labels should use. This determines a
     /// maximum offset value for axis titles.
@@ -4926,23 +5536,62 @@ pub struct Axis {
     /// the right edge of the chart).
     ///
     /// __Default value:__ `"bottom"` for x-axes and `"left"` for y-axes.
-    pub orient: Option<TitleOrient>,
-    /// The anchor position of the axis in pixels. For x-axis with top or bottom orientation,
-    /// this sets the axis group x coordinate. For y-axis with left or right orientation, this
+    pub orient: Option<LegendOrient>,
+    /// The anchor position of the axis in pixels. For x-axes with top or bottom orientation,
+    /// this sets the axis group x coordinate. For y-axes with left or right orientation, this
     /// sets the axis group y coordinate.
     ///
     /// __Default value__: `0`
     pub position: Option<f64>,
+    /// The color of the axis's tick.
+    ///
+    /// __Default value:__ `"gray"`
+    #[serde(rename = "tickColor")]
+    pub tick_color: Option<String>,
     /// A desired number of ticks, for axes visualizing quantitative scales. The resulting number
     /// may be different so that values are "nice" (multiples of 2, 5, 10) and lie within the
     /// underlying scale's range.
     #[serde(rename = "tickCount")]
     pub tick_count: Option<f64>,
+    /// Boolean flag indicating if an extra axis tick should be added for the initial position of
+    /// the axis. This flag is useful for styling axes for `band` scales such that ticks are
+    /// placed on band boundaries rather in the middle of a band. Use in conjunction with
+    /// `"bandPostion": 1` and an axis `"padding"` value of `0`.
+    #[serde(rename = "tickExtra")]
+    pub tick_extra: Option<bool>,
+    /// Position offset in pixels to apply to ticks, labels, and gridlines.
+    #[serde(rename = "tickOffset")]
+    pub tick_offset: Option<f64>,
+    /// Opacity of the ticks.
+    #[serde(rename = "tickOpacity")]
+    pub tick_opacity: Option<f64>,
+    /// Boolean flag indicating if pixel position values should be rounded to the nearest
+    /// integer.
+    ///
+    /// __Default value:__ `true`
+    #[serde(rename = "tickRound")]
+    pub tick_round: Option<bool>,
     /// Boolean value that determines whether the axis should include ticks.
+    ///
+    /// __Default value:__ `true`
     pub ticks: Option<bool>,
     /// The size in pixels of axis ticks.
+    ///
+    /// __Default value:__ `5`
     #[serde(rename = "tickSize")]
     pub tick_size: Option<f64>,
+    /// A desired step size for ticks. This property will generate the corresponding `tickCount`
+    /// and `values`. It can be useful for [data that are binned before importing into
+    /// Vega-Lite](https://vega.github.io/vega-lite/docs/bin.html#binned).
+    ///
+    /// __Default value__: `undefined`
+    #[serde(rename = "tickStep")]
+    pub tick_step: Option<f64>,
+    /// The width, in pixels, of ticks.
+    ///
+    /// __Default value:__ `1`
+    #[serde(rename = "tickWidth")]
+    pub tick_width: Option<f64>,
     /// A title for the field. If `null`, the title will be removed.
     ///
     /// __Default value:__  derived from the field's name and transformation function
@@ -4962,13 +5611,44 @@ pub struct Axis {
     /// 2) If both field definition's `title` and axis, header, or legend `title` are defined,
     /// axis/header/legend title will be used.
     pub title: Option<String>,
-    /// Max length for axis title if the title is automatically generated from the field's
-    /// description.
-    #[serde(rename = "titleMaxLength")]
-    pub title_max_length: Option<f64>,
+    /// Horizontal text alignment of axis titles.
+    #[serde(rename = "titleAlign")]
+    pub title_align: Option<Align>,
+    /// Angle in degrees of axis titles.
+    #[serde(rename = "titleAngle")]
+    pub title_angle: Option<f64>,
+    /// Vertical text baseline for axis titles.
+    #[serde(rename = "titleBaseline")]
+    pub title_baseline: Option<TextBaseline>,
+    /// Color of the title, can be in hex color code or regular color name.
+    #[serde(rename = "titleColor")]
+    pub title_color: Option<String>,
+    /// Font of the title. (e.g., `"Helvetica Neue"`).
+    #[serde(rename = "titleFont")]
+    pub title_font: Option<String>,
+    /// Font size of the title.
+    #[serde(rename = "titleFontSize")]
+    pub title_font_size: Option<f64>,
+    /// Font weight of the title.
+    /// This can be either a string (e.g `"bold"`, `"normal"`) or a number (`100`, `200`, `300`,
+    /// ..., `900` where `"normal"` = `400` and `"bold"` = `700`).
+    #[serde(rename = "titleFontWeight")]
+    pub title_font_weight: Option<FontWeight>,
+    /// Maximum allowed pixel width of axis titles.
+    #[serde(rename = "titleLimit")]
+    pub title_limit: Option<f64>,
+    /// Opacity of the axis title.
+    #[serde(rename = "titleOpacity")]
+    pub title_opacity: Option<f64>,
     /// The padding, in pixels, between title and axis.
     #[serde(rename = "titlePadding")]
     pub title_padding: Option<f64>,
+    /// X-coordinate of the axis title relative to the axis group.
+    #[serde(rename = "titleX")]
+    pub title_x: Option<f64>,
+    /// Y-coordinate of the axis title relative to the axis group.
+    #[serde(rename = "titleY")]
+    pub title_y: Option<f64>,
     /// Explicitly set the visible axis tick values.
     pub values: Option<Vec<SortElement>>,
     /// A non-positive integer indicating z-index of the axis.
@@ -4980,11 +5660,59 @@ pub struct Axis {
     pub zindex: Option<f64>,
 }
 
+/// An object defining the properties of the Impute Operation to be applied.
+/// The field value of the other positional channel is taken as `key` of the `Impute`
+/// Operation.
+/// The field of the `color` channel if specified is used as `groupby` of the `Impute`
+/// Operation.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ImputeParams {
+    /// A frame specification as a two-element array used to control the window over which the
+    /// specified method is applied. The array entries should either be a number indicating the
+    /// offset from the current data object, or null to indicate unbounded rows preceding or
+    /// following the current data object.  For example, the value `[-5, 5]` indicates that the
+    /// window should include five objects preceding and five objects following the current
+    /// object.
+    ///
+    /// __Default value:__:  `[null, null]` indicating that the window includes all objects.
+    pub frame: Option<Vec<Option<f64>>>,
+    /// Defines the key values that should be considered for imputation.
+    /// An array of key values or an object defining a [number
+    /// sequence](https://vega.github.io/vega-lite/docs/impute.html#sequence-def).
+    ///
+    /// If provided, this will be used in addition to the key values observed within the input
+    /// data.  If not provided, the values will be derived from all unique values of the `key`
+    /// field. For `impute` in `encoding`, the key field is the x-field if the y-field is
+    /// imputed, or vice versa.
+    ///
+    /// If there is no impute grouping, this property _must_ be specified.
+    pub keyvals: Option<Keyvals>,
+    /// The imputation method to use for the field value of imputed data objects.
+    /// One of `value`, `mean`, `median`, `max` or `min`.
+    ///
+    /// __Default value:__  `"value"`
+    pub method: Option<ImputeMethod>,
+    /// The field value to use when the imputation `method` is `"value"`.
+    pub value: Option<serde_json::Value>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ImputeSequence {
+    /// The starting value of the sequence.
+    /// __Default value:__ `0`
+    pub start: Option<f64>,
+    /// The step value between sequence entries.
+    /// __Default value:__ `1` or `-1` if `stop < start`
+    pub step: Option<f64>,
+    /// The ending value(exclusive) of the sequence.
+    pub stop: f64,
+}
+
 /// X2 coordinates for ranged `"area"`, `"bar"`, `"rect"`, and  `"rule"`.
 ///
 /// Y2 coordinates for ranged `"area"`, `"bar"`, `"rect"`, and  `"rule"`.
 ///
-/// Definition object for a data field, its type and transformation of an encoding channel.
+/// Field Def without scale (and without bin: "binned" support).
 ///
 /// A data field to use as a unique key for data binding. When a visualization’s data is
 /// updated, the key value will be used to match data elements to existing mark instances.
@@ -5008,13 +5736,23 @@ pub struct X2Class {
     ///
     /// __Default value:__ `undefined` (None)
     pub aggregate: Option<AggregateOp>,
-    /// A flag for binning a `quantitative` field, or [an object defining binning
-    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params).
-    /// If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
+    /// A flag for binning a `quantitative` field, [an object defining binning
+    /// parameters](https://vega.github.io/vega-lite/docs/bin.html#params), or indicating that
+    /// the data for `x` or `y` channel are binned before they are imported into Vega-Lite
+    /// (`"binned"`).
+    ///
+    /// - If `true`, default [binning parameters](https://vega.github.io/vega-lite/docs/bin.html)
     /// will be applied.
     ///
+    /// - To indicate that the data for the `x` (or `y`) channel are already binned, you can set
+    /// the `bin` property of the `x` (or `y`) channel to `"binned"` and map the bin-start field
+    /// to `x` (or `y`) and the bin-end field to `x2` (or `y2`). The scale and axis will be
+    /// formatted similar to binning in Vega-lite.  To adjust the axis ticks based on the bin
+    /// step, you can also set the axis's
+    /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
+    ///
     /// __Default value:__ `false`
-    pub bin: Option<Bin>,
+    pub bin: Option<PurpleBin>,
     /// __Required.__ A string defining the name of the field from which to pull a data value
     /// or an object defining iterated values from the
     /// [`repeat`](https://vega.github.io/vega-lite/docs/repeat.html) operator.
@@ -5062,7 +5800,7 @@ pub struct X2Class {
     pub def_type: Option<Type>,
     /// A constant value in visual domain (e.g., `"red"` / "#0099ff" for color, values between
     /// `0` to `1` for opacity).
-    pub value: Option<PurpleValue>,
+    pub value: Option<Value>,
 }
 
 /// An object that describes mappings between `row` and `column` channels and their field
@@ -5075,9 +5813,11 @@ pub struct FacetMapping {
     pub row: Option<FacetFieldDef>,
 }
 
+/// A specification of the view that gets faceted.
+///
 /// Layer Spec with encoding and projection
 ///
-/// Unit spec that can have a composite mark.
+/// Unit spec that can have a composite mark and row or column channels.
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SpecClass {
     /// An object describing the data source
@@ -5088,7 +5828,7 @@ pub struct SpecClass {
     /// underlying layers.
     ///
     /// A key-value mapping between encoding channels and definition of fields.
-    pub encoding: Option<SpecEncoding>,
+    pub encoding: Option<Encoding>,
     /// The height of a visualization.
     ///
     /// __Default value:__
@@ -5116,7 +5856,9 @@ pub struct SpecClass {
     /// Layer or single view specifications to be layered.
     ///
     /// __Note__: Specifications inside `layer` cannot use `row` and `column` channels as
-    /// layering facet specifications is not allowed.
+    /// layering facet specifications is not allowed. Instead, use the [facet
+    /// operator](https://vega.github.io/vega-lite/docs/facet.html) and place a layer inside a
+    /// facet.
     pub layer: Option<Vec<LayerSpec>>,
     /// Name of the visualization for later reference.
     pub name: Option<String>,
@@ -5189,7 +5931,7 @@ pub struct SpecClass {
     /// used to supply different alignments for rows and columns.
     ///
     /// __Default value:__ `"all"`.
-    pub align: Option<Align>,
+    pub align: Option<AlignUnion>,
     /// The bounds calculation method to use for determining the extent of a sub-plot. One of
     /// `full` (the default) or `flush`.
     ///
@@ -5238,7 +5980,7 @@ pub struct SpecClass {
     pub hconcat: Option<Vec<Spec>>,
 }
 
-/// Unit spec that can have a composite mark.
+/// Unit spec that can have a composite mark and row or column channels.
 ///
 /// Layer Spec with encoding and projection
 #[derive(Debug, Serialize, Deserialize)]
@@ -5251,7 +5993,7 @@ pub struct Spec {
     ///
     /// A shared key-value mapping between encoding channels and definition of fields in the
     /// underlying layers.
-    pub encoding: Option<SpecEncoding>,
+    pub encoding: Option<Encoding>,
     /// The height of a visualization.
     ///
     /// __Default value:__
@@ -5325,7 +6067,9 @@ pub struct Spec {
     /// Layer or single view specifications to be layered.
     ///
     /// __Note__: Specifications inside `layer` cannot use `row` and `column` channels as
-    /// layering facet specifications is not allowed.
+    /// layering facet specifications is not allowed. Instead, use the [facet
+    /// operator](https://vega.github.io/vega-lite/docs/facet.html) and place a layer inside a
+    /// facet.
     pub layer: Option<Vec<LayerSpec>>,
     /// Scale, axis, and legend resolutions for layers.
     ///
@@ -5352,7 +6096,7 @@ pub struct Spec {
     /// used to supply different alignments for rows and columns.
     ///
     /// __Default value:__ `"all"`.
-    pub align: Option<Align>,
+    pub align: Option<AlignUnion>,
     /// The bounds calculation method to use for determining the extent of a sub-plot. One of
     /// `full` (the default) or `flush`.
     ///
@@ -5401,12 +6145,107 @@ pub struct Spec {
     pub hconcat: Option<Vec<Spec>>,
 }
 
+/// Layer Spec with encoding and projection
+///
+/// Unit spec that can have a composite mark.
+#[derive(Debug, Serialize, Deserialize)]
+pub struct LayerSpec {
+    /// An object describing the data source
+    pub data: Option<Data>,
+    /// Description of this mark for commenting purpose.
+    pub description: Option<String>,
+    /// A shared key-value mapping between encoding channels and definition of fields in the
+    /// underlying layers.
+    ///
+    /// A key-value mapping between encoding channels and definition of fields.
+    pub encoding: Option<LayerEncoding>,
+    /// The height of a visualization.
+    ///
+    /// __Default value:__
+    /// - If a view's [`autosize`](https://vega.github.io/vega-lite/docs/size.html#autosize) type
+    /// is `"fit"` or its y-channel has a [continuous
+    /// scale](https://vega.github.io/vega-lite/docs/scale.html#continuous), the height will be
+    /// the value of
+    /// [`config.view.height`](https://vega.github.io/vega-lite/docs/spec.html#config).
+    /// - For y-axis with a band or point scale: if
+    /// [`rangeStep`](https://vega.github.io/vega-lite/docs/scale.html#band) is a numeric value
+    /// or unspecified, the height is [determined by the range step, paddings, and the
+    /// cardinality of the field mapped to
+    /// y-channel](https://vega.github.io/vega-lite/docs/scale.html#band). Otherwise, if the
+    /// `rangeStep` is `null`, the height will be the value of
+    /// [`config.view.height`](https://vega.github.io/vega-lite/docs/spec.html#config).
+    /// - If no field is mapped to `y` channel, the `height` will be the value of `rangeStep`.
+    ///
+    /// __Note__: For plots with [`row` and `column`
+    /// channels](https://vega.github.io/vega-lite/docs/encoding.html#facet), this represents the
+    /// height of a single view.
+    ///
+    /// __See also:__ The documentation for [width and
+    /// height](https://vega.github.io/vega-lite/docs/size.html) contains more examples.
+    pub height: Option<f64>,
+    /// Layer or single view specifications to be layered.
+    ///
+    /// __Note__: Specifications inside `layer` cannot use `row` and `column` channels as
+    /// layering facet specifications is not allowed. Instead, use the [facet
+    /// operator](https://vega.github.io/vega-lite/docs/facet.html) and place a layer inside a
+    /// facet.
+    pub layer: Option<Vec<LayerSpec>>,
+    /// Name of the visualization for later reference.
+    pub name: Option<String>,
+    /// An object defining properties of the geographic projection shared by underlying layers.
+    ///
+    /// An object defining properties of geographic projection, which will be applied to `shape`
+    /// path for `"geoshape"` marks
+    /// and to `latitude` and `"longitude"` channels for other marks.
+    pub projection: Option<Projection>,
+    /// Scale, axis, and legend resolutions for layers.
+    pub resolve: Option<Resolve>,
+    /// Title for the plot.
+    pub title: Option<Title>,
+    /// An array of data transformations such as filter and new field calculation.
+    pub transform: Option<Vec<Transform>>,
+    /// The width of a visualization.
+    ///
+    /// __Default value:__ This will be determined by the following rules:
+    ///
+    /// - If a view's [`autosize`](https://vega.github.io/vega-lite/docs/size.html#autosize) type
+    /// is `"fit"` or its x-channel has a [continuous
+    /// scale](https://vega.github.io/vega-lite/docs/scale.html#continuous), the width will be
+    /// the value of
+    /// [`config.view.width`](https://vega.github.io/vega-lite/docs/spec.html#config).
+    /// - For x-axis with a band or point scale: if
+    /// [`rangeStep`](https://vega.github.io/vega-lite/docs/scale.html#band) is a numeric value
+    /// or unspecified, the width is [determined by the range step, paddings, and the cardinality
+    /// of the field mapped to
+    /// x-channel](https://vega.github.io/vega-lite/docs/scale.html#band).   Otherwise, if the
+    /// `rangeStep` is `null`, the width will be the value of
+    /// [`config.view.width`](https://vega.github.io/vega-lite/docs/spec.html#config).
+    /// - If no field is mapped to `x` channel, the `width` will be the value of
+    /// [`config.scale.textXRangeStep`](https://vega.github.io/vega-lite/docs/size.html#default-width-and-height)
+    /// for `text` mark and the value of `rangeStep` for other marks.
+    ///
+    /// __Note:__ For plots with [`row` and `column`
+    /// channels](https://vega.github.io/vega-lite/docs/encoding.html#facet), this represents the
+    /// width of a single view.
+    ///
+    /// __See also:__ The documentation for [width and
+    /// height](https://vega.github.io/vega-lite/docs/size.html) contains more examples.
+    pub width: Option<f64>,
+    /// A string describing the mark type (one of `"bar"`, `"circle"`, `"square"`, `"tick"`,
+    /// `"line"`,
+    /// `"area"`, `"point"`, `"rule"`, `"geoshape"`, and `"text"`) or a [mark definition
+    /// object](https://vega.github.io/vega-lite/docs/mark.html#mark-def).
+    pub mark: Option<AnyMark>,
+    /// A key-value mapping between selection names and definitions.
+    pub selection: Option<HashMap<String, SelectionDef>>,
+}
+
 /// A shared key-value mapping between encoding channels and definition of fields in the
 /// underlying layers.
 ///
 /// A key-value mapping between encoding channels and definition of fields.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct SpecEncoding {
+pub struct LayerEncoding {
     /// Color of the marks – either fill or stroke color based on  the `filled` property of mark
     /// definition.
     /// By default, `color` represents fill color for `"area"`, `"bar"`, `"tick"`,
@@ -5493,7 +6332,7 @@ pub struct SpecEncoding {
     /// Text of the `text` mark.
     pub text: Option<TextClass>,
     /// The tooltip text to show upon mouse hover.
-    pub tooltip: Option<Tooltip>,
+    pub tooltip: Option<EncodingTooltip>,
     /// X coordinates of the marks, or width of horizontal `"bar"` and `"area"`.
     pub x: Option<XClass>,
     /// X2 coordinates for ranged `"area"`, `"bar"`, `"rect"`, and  `"rule"`.
@@ -5504,115 +6343,12 @@ pub struct SpecEncoding {
     pub y2: Option<X2Class>,
 }
 
-/// Layer Spec with encoding and projection
-///
-/// Unit spec that can have a composite mark.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct LayerSpec {
-    /// An object describing the data source
-    pub data: Option<Data>,
-    /// Description of this mark for commenting purpose.
-    pub description: Option<String>,
-    /// A shared key-value mapping between encoding channels and definition of fields in the
-    /// underlying layers.
+pub struct BoxPlotDefClass {
+    #[serde(rename = "box")]
+    pub def_box: Option<BooleanOrMarkConfig>,
+    /// Whether a composite mark be clipped to the enclosing group’s width and height.
     ///
-    /// A key-value mapping between encoding channels and definition of fields.
-    pub encoding: Option<SpecEncoding>,
-    /// The height of a visualization.
-    ///
-    /// __Default value:__
-    /// - If a view's [`autosize`](https://vega.github.io/vega-lite/docs/size.html#autosize) type
-    /// is `"fit"` or its y-channel has a [continuous
-    /// scale](https://vega.github.io/vega-lite/docs/scale.html#continuous), the height will be
-    /// the value of
-    /// [`config.view.height`](https://vega.github.io/vega-lite/docs/spec.html#config).
-    /// - For y-axis with a band or point scale: if
-    /// [`rangeStep`](https://vega.github.io/vega-lite/docs/scale.html#band) is a numeric value
-    /// or unspecified, the height is [determined by the range step, paddings, and the
-    /// cardinality of the field mapped to
-    /// y-channel](https://vega.github.io/vega-lite/docs/scale.html#band). Otherwise, if the
-    /// `rangeStep` is `null`, the height will be the value of
-    /// [`config.view.height`](https://vega.github.io/vega-lite/docs/spec.html#config).
-    /// - If no field is mapped to `y` channel, the `height` will be the value of `rangeStep`.
-    ///
-    /// __Note__: For plots with [`row` and `column`
-    /// channels](https://vega.github.io/vega-lite/docs/encoding.html#facet), this represents the
-    /// height of a single view.
-    ///
-    /// __See also:__ The documentation for [width and
-    /// height](https://vega.github.io/vega-lite/docs/size.html) contains more examples.
-    pub height: Option<f64>,
-    /// Layer or single view specifications to be layered.
-    ///
-    /// __Note__: Specifications inside `layer` cannot use `row` and `column` channels as
-    /// layering facet specifications is not allowed.
-    pub layer: Option<Vec<LayerSpec>>,
-    /// Name of the visualization for later reference.
-    pub name: Option<String>,
-    /// An object defining properties of the geographic projection shared by underlying layers.
-    ///
-    /// An object defining properties of geographic projection, which will be applied to `shape`
-    /// path for `"geoshape"` marks
-    /// and to `latitude` and `"longitude"` channels for other marks.
-    pub projection: Option<Projection>,
-    /// Scale, axis, and legend resolutions for layers.
-    pub resolve: Option<Resolve>,
-    /// Title for the plot.
-    pub title: Option<Title>,
-    /// An array of data transformations such as filter and new field calculation.
-    pub transform: Option<Vec<Transform>>,
-    /// The width of a visualization.
-    ///
-    /// __Default value:__ This will be determined by the following rules:
-    ///
-    /// - If a view's [`autosize`](https://vega.github.io/vega-lite/docs/size.html#autosize) type
-    /// is `"fit"` or its x-channel has a [continuous
-    /// scale](https://vega.github.io/vega-lite/docs/scale.html#continuous), the width will be
-    /// the value of
-    /// [`config.view.width`](https://vega.github.io/vega-lite/docs/spec.html#config).
-    /// - For x-axis with a band or point scale: if
-    /// [`rangeStep`](https://vega.github.io/vega-lite/docs/scale.html#band) is a numeric value
-    /// or unspecified, the width is [determined by the range step, paddings, and the cardinality
-    /// of the field mapped to
-    /// x-channel](https://vega.github.io/vega-lite/docs/scale.html#band).   Otherwise, if the
-    /// `rangeStep` is `null`, the width will be the value of
-    /// [`config.view.width`](https://vega.github.io/vega-lite/docs/spec.html#config).
-    /// - If no field is mapped to `x` channel, the `width` will be the value of
-    /// [`config.scale.textXRangeStep`](https://vega.github.io/vega-lite/docs/size.html#default-width-and-height)
-    /// for `text` mark and the value of `rangeStep` for other marks.
-    ///
-    /// __Note:__ For plots with [`row` and `column`
-    /// channels](https://vega.github.io/vega-lite/docs/encoding.html#facet), this represents the
-    /// width of a single view.
-    ///
-    /// __See also:__ The documentation for [width and
-    /// height](https://vega.github.io/vega-lite/docs/size.html) contains more examples.
-    pub width: Option<f64>,
-    /// A string describing the mark type (one of `"bar"`, `"circle"`, `"square"`, `"tick"`,
-    /// `"line"`,
-    /// `"area"`, `"point"`, `"rule"`, `"geoshape"`, and `"text"`) or a [mark definition
-    /// object](https://vega.github.io/vega-lite/docs/mark.html#mark-def).
-    pub mark: Option<AnyMark>,
-    /// A key-value mapping between selection names and definitions.
-    pub selection: Option<HashMap<String, SelectionDef>>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct MarkDef {
-    /// The horizontal alignment of the text. One of `"left"`, `"right"`, `"center"`.
-    pub align: Option<HorizontalAlign>,
-    /// The rotation angle of the text, in degrees.
-    pub angle: Option<f64>,
-    /// The vertical alignment of the text. One of `"top"`, `"middle"`, `"bottom"`.
-    ///
-    /// __Default value:__ `"middle"`
-    pub baseline: Option<VerticalAlign>,
-    /// Offset between bars for binned field.  Ideal value for this is either 0 (Preferred by
-    /// statisticians) or 1 (Vega-Lite Default, D3 example style).
-    ///
-    /// __Default value:__ `1`
-    #[serde(rename = "binSpacing")]
-    pub bin_spacing: Option<f64>,
     /// Whether a mark be clipped to the enclosing group’s width and height.
     pub clip: Option<bool>,
     /// Default color.  Note that `fill` and `stroke` have higher precedence than `color` and
@@ -5623,6 +6359,149 @@ pub struct MarkDef {
     /// __Note:__ This property cannot be used in a [style
     /// config](https://vega.github.io/vega-lite/docs/mark.html#style-config).
     pub color: Option<String>,
+    /// The extent of the whiskers. Available options include:
+    /// - `"min-max"`: min and max are the lower and upper whiskers respectively.
+    /// - A number representing multiple of the interquartile range (Q3-Q1).  This number will be
+    /// multiplied by the IQR. the product will be added to the third quartile to get the upper
+    /// whisker and subtracted from the first quartile to get the lower whisker.
+    ///
+    /// __Default value:__ `1.5`.
+    ///
+    /// The extent of the rule. Available options include:
+    /// - `"ci"`: Extend the rule to the confidence interval of the mean.
+    /// - `"stderr"`: The size of rule are set to the value of standard error, extending from the
+    /// mean.
+    /// - `"stdev"`: The size of rule are set to the value of standard deviation, extending from
+    /// the mean.
+    /// - `"iqr"`: Extend the rule to the q1 and q3.
+    ///
+    /// __Default value:__ `"stderr"`.
+    ///
+    /// The extent of the band. Available options include:
+    /// - `"ci"`: Extend the band to the confidence interval of the mean.
+    /// - `"stderr"`: The size of band are set to the value of standard error, extending from the
+    /// mean.
+    /// - `"stdev"`: The size of band are set to the value of standard deviation, extending from
+    /// the mean.
+    /// - `"iqr"`: Extend the band to the q1 and q3.
+    ///
+    /// __Default value:__ `"stderr"`.
+    pub extent: Option<BoxPlotDefExtent>,
+    pub median: Option<BooleanOrMarkConfig>,
+    /// The opacity (value between [0,1]) of the mark.
+    ///
+    /// The overall opacity (value between [0,1]).
+    ///
+    /// __Default value:__ `0.7` for non-aggregate plots with `point`, `tick`, `circle`, or
+    /// `square` marks or layered `bar` charts and `1` otherwise.
+    pub opacity: Option<f64>,
+    /// Orientation of the box plot.  This is normally automatically determined based on types of
+    /// fields on x and y channels. However, an explicit `orient` be specified when the
+    /// orientation is ambiguous.
+    ///
+    /// __Default value:__ `"vertical"`.
+    ///
+    /// Orientation of the error bar.  This is normally automatically determined, but can be
+    /// specified when the orientation is ambiguous and cannot be automatically determined.
+    ///
+    /// Orientation of the error band. This is normally automatically determined, but can be
+    /// specified when the orientation is ambiguous and cannot be automatically determined.
+    ///
+    /// The orientation of a non-stacked bar, tick, area, and line charts.
+    /// The value is either horizontal (default) or vertical.
+    /// - For bar, rule and tick, this determines whether the size of the bar and tick
+    /// should be applied to x or y dimension.
+    /// - For area, this property determines the orient property of the Vega output.
+    /// - For line and trail marks, this property determines the sort order of the points in the
+    /// line
+    /// if `config.sortLineBy` is not specified.
+    /// For stacked charts, this is always determined by the orientation of the stack;
+    /// therefore explicitly specified value will be ignored.
+    pub orient: Option<Orient>,
+    pub outliers: Option<BooleanOrMarkConfig>,
+    pub rule: Option<BooleanOrMarkConfig>,
+    /// Size of the box and median tick of a box plot
+    ///
+    /// Default size for marks.
+    /// - For `point`/`circle`/`square`, this represents the pixel area of the marks. For
+    /// example: in the case of circles, the radius is determined in part by the square root of
+    /// the size value.
+    /// - For `bar`, this represents the band size of the bar, in pixels.
+    /// - For `text`, this represents the font size, in pixels.
+    ///
+    /// __Default value:__ `30` for point, circle, square marks; `rangeStep` - 1 for bar marks
+    /// with discrete dimensions; `5` for bar marks with continuous dimensions; `11` for text
+    /// marks.
+    pub size: Option<f64>,
+    pub ticks: Option<BooleanOrMarkConfig>,
+    /// The mark type. This could a primitive mark type
+    /// (one of `"bar"`, `"circle"`, `"square"`, `"tick"`, `"line"`,
+    /// `"area"`, `"point"`, `"geoshape"`, `"rule"`, and `"text"`)
+    /// or a composite mark type (`"boxplot"`, `"errorband"`, `"errorbar"`).
+    ///
+    /// The mark type.
+    /// One of `"bar"`, `"circle"`, `"square"`, `"tick"`, `"line"`,
+    /// `"area"`, `"point"`, `"geoshape"`, `"rule"`, and `"text"`.
+    #[serde(rename = "type")]
+    pub def_type: BoxPlot,
+    pub band: Option<BooleanOrMarkConfig>,
+    pub borders: Option<BooleanOrMarkConfig>,
+    /// The line interpolation method for the error band. One of the following:
+    /// - `"linear"`: piecewise linear segments, as in a polyline.
+    /// - `"linear-closed"`: close the linear segments to form a polygon.
+    /// - `"step"`: alternate between horizontal and vertical segments, as in a step function.
+    /// - `"step-before"`: alternate between vertical and horizontal segments, as in a step
+    /// function.
+    /// - `"step-after"`: alternate between horizontal and vertical segments, as in a step
+    /// function.
+    /// - `"basis"`: a B-spline, with control point duplication on the ends.
+    /// - `"basis-open"`: an open B-spline; may not intersect the start or end.
+    /// - `"basis-closed"`: a closed B-spline, as in a loop.
+    /// - `"cardinal"`: a Cardinal spline, with control point duplication on the ends.
+    /// - `"cardinal-open"`: an open Cardinal spline; may not intersect the start or end, but
+    /// will intersect other control points.
+    /// - `"cardinal-closed"`: a closed Cardinal spline, as in a loop.
+    /// - `"bundle"`: equivalent to basis, except the tension parameter is used to straighten the
+    /// spline.
+    /// - `"monotone"`: cubic interpolation that preserves monotonicity in y.
+    ///
+    /// The line interpolation method to use for line and area marks. One of the following:
+    /// - `"linear"`: piecewise linear segments, as in a polyline.
+    /// - `"linear-closed"`: close the linear segments to form a polygon.
+    /// - `"step"`: alternate between horizontal and vertical segments, as in a step function.
+    /// - `"step-before"`: alternate between vertical and horizontal segments, as in a step
+    /// function.
+    /// - `"step-after"`: alternate between horizontal and vertical segments, as in a step
+    /// function.
+    /// - `"basis"`: a B-spline, with control point duplication on the ends.
+    /// - `"basis-open"`: an open B-spline; may not intersect the start or end.
+    /// - `"basis-closed"`: a closed B-spline, as in a loop.
+    /// - `"cardinal"`: a Cardinal spline, with control point duplication on the ends.
+    /// - `"cardinal-open"`: an open Cardinal spline; may not intersect the start or end, but
+    /// will intersect other control points.
+    /// - `"cardinal-closed"`: a closed Cardinal spline, as in a loop.
+    /// - `"bundle"`: equivalent to basis, except the tension parameter is used to straighten the
+    /// spline.
+    /// - `"monotone"`: cubic interpolation that preserves monotonicity in y.
+    pub interpolate: Option<Interpolate>,
+    /// The tension parameter for the interpolation type of the error band.
+    ///
+    /// Depending on the interpolation type, sets the tension parameter (for line and area marks).
+    pub tension: Option<f64>,
+    /// The horizontal alignment of the text. One of `"left"`, `"right"`, `"center"`.
+    pub align: Option<Align>,
+    /// The rotation angle of the text, in degrees.
+    pub angle: Option<f64>,
+    /// The vertical alignment of the text. One of `"top"`, `"middle"`, `"bottom"`.
+    ///
+    /// __Default value:__ `"middle"`
+    pub baseline: Option<TextBaseline>,
+    /// Offset between bars for binned field.  Ideal value for this is either 0 (Preferred by
+    /// statisticians) or 1 (Vega-Lite Default, D3 example style).
+    ///
+    /// __Default value:__ `1`
+    #[serde(rename = "binSpacing")]
+    pub bin_spacing: Option<f64>,
     /// The radius in pixels of rounded rectangle corners.
     ///
     /// __Default value:__ `0`
@@ -5679,25 +6558,6 @@ pub struct MarkDef {
     pub font_weight: Option<FontWeight>,
     /// A URL to load upon mouse click. If defined, the mark acts as a hyperlink.
     pub href: Option<String>,
-    /// The line interpolation method to use for line and area marks. One of the following:
-    /// - `"linear"`: piecewise linear segments, as in a polyline.
-    /// - `"linear-closed"`: close the linear segments to form a polygon.
-    /// - `"step"`: alternate between horizontal and vertical segments, as in a step function.
-    /// - `"step-before"`: alternate between vertical and horizontal segments, as in a step
-    /// function.
-    /// - `"step-after"`: alternate between horizontal and vertical segments, as in a step
-    /// function.
-    /// - `"basis"`: a B-spline, with control point duplication on the ends.
-    /// - `"basis-open"`: an open B-spline; may not intersect the start or end.
-    /// - `"basis-closed"`: a closed B-spline, as in a loop.
-    /// - `"cardinal"`: a Cardinal spline, with control point duplication on the ends.
-    /// - `"cardinal-open"`: an open Cardinal spline; may not intersect the start or end, but
-    /// will intersect other control points.
-    /// - `"cardinal-closed"`: a closed Cardinal spline, as in a loop.
-    /// - `"bundle"`: equivalent to basis, except the tension parameter is used to straighten the
-    /// spline.
-    /// - `"monotone"`: cubic interpolation that preserves monotonicity in y.
-    pub interpolate: Option<Interpolate>,
     /// The maximum length of the text mark in pixels. The text value will be automatically
     /// truncated if the rendered size exceeds the limit.
     ///
@@ -5713,22 +6573,6 @@ pub struct MarkDef {
     ///
     /// __Default value:__ `false`.
     pub line: Option<Line>,
-    /// The overall opacity (value between [0,1]).
-    ///
-    /// __Default value:__ `0.7` for non-aggregate plots with `point`, `tick`, `circle`, or
-    /// `square` marks or layered `bar` charts and `1` otherwise.
-    pub opacity: Option<f64>,
-    /// The orientation of a non-stacked bar, tick, area, and line charts.
-    /// The value is either horizontal (default) or vertical.
-    /// - For bar, rule and tick, this determines whether the size of the bar and tick
-    /// should be applied to x or y dimension.
-    /// - For area, this property determines the orient property of the Vega output.
-    /// - For line and trail marks, this property determines the sort order of the points in the
-    /// line
-    /// if `config.sortLineBy` is not specified.
-    /// For stacked charts, this is always determined by the orientation of the stack;
-    /// therefore explicitly specified value will be ignored.
-    pub orient: Option<Orient>,
     /// A flag for overlaying points on top of line or area marks, or an object defining the
     /// properties of the overlayed points.
     ///
@@ -5751,12 +6595,6 @@ pub struct MarkDef {
     ///
     /// __Default value:__ `"circle"`
     pub shape: Option<String>,
-    /// The pixel area each the point/circle/square.
-    /// For example: in the case of circles, the radius is determined in part by the square root
-    /// of the size value.
-    ///
-    /// __Default value:__ `30`
-    pub size: Option<f64>,
     /// Default Stroke Color.  This has higher precedence than `config.color`
     ///
     /// __Default value:__ (None)
@@ -5801,8 +6639,6 @@ pub struct MarkDef {
     /// with `"style": "foo"` will receive from `config.style.bar` and `config.style.foo` (the
     /// specified style `"foo"` has higher precedence).
     pub style: Option<Style>,
-    /// Depending on the interpolation type, sets the tension parameter (for line and area marks).
-    pub tension: Option<f64>,
     /// Placeholder text if the `text` channel is not specified
     pub text: Option<String>,
     /// Polar coordinate angle, in radians, of the text label from the origin determined by the
@@ -5814,13 +6650,14 @@ pub struct MarkDef {
     ///
     /// __Default value:__  `1`
     pub thickness: Option<f64>,
-    /// The tooltip text to show upon mouse hover.
-    pub tooltip: Option<serde_json::Value>,
-    /// The mark type.
-    /// One of `"bar"`, `"circle"`, `"square"`, `"tick"`, `"line"`,
-    /// `"area"`, `"point"`, `"geoshape"`, `"rule"`, and `"text"`.
-    #[serde(rename = "type")]
-    pub mark_def_type: Mark,
+    /// The tooltip text string to show upon mouse hover or an object defining which fields
+    /// should the tooltip be derived from.
+    ///
+    /// - If `tooltip` is `{"content": "encoding"}`, then all fields from `encoding` will be
+    /// used.
+    /// - If `tooltip` is `{"content": "data"}`, then all fields that appear in the highlighted
+    /// data point will be used.
+    pub tooltip: Option<PurpleTooltip>,
     /// Offset for x2-position.
     #[serde(rename = "x2Offset")]
     pub x2_offset: Option<f64>,
@@ -5833,61 +6670,6 @@ pub struct MarkDef {
     /// Offset for y-position.
     #[serde(rename = "yOffset")]
     pub y_offset: Option<f64>,
-}
-
-/// An object defining properties of geographic projection, which will be applied to `shape`
-/// path for `"geoshape"` marks
-/// and to `latitude` and `"longitude"` channels for other marks.
-///
-/// An object defining properties of the geographic projection shared by underlying layers.
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Projection {
-    /// Sets the projection’s center to the specified center, a two-element array of longitude
-    /// and latitude in degrees.
-    ///
-    /// __Default value:__ `[0, 0]`
-    pub center: Option<Vec<f64>>,
-    /// Sets the projection’s clipping circle radius to the specified angle in degrees. If
-    /// `null`, switches to [antimeridian](http://bl.ocks.org/mbostock/3788999) cutting rather
-    /// than small-circle clipping.
-    #[serde(rename = "clipAngle")]
-    pub clip_angle: Option<f64>,
-    /// Sets the projection’s viewport clip extent to the specified bounds in pixels. The extent
-    /// bounds are specified as an array `[[x0, y0], [x1, y1]]`, where `x0` is the left-side of
-    /// the viewport, `y0` is the top, `x1` is the right and `y1` is the bottom. If `null`, no
-    /// viewport clipping is performed.
-    #[serde(rename = "clipExtent")]
-    pub clip_extent: Option<Vec<Vec<f64>>>,
-    pub coefficient: Option<f64>,
-    pub distance: Option<f64>,
-    pub fraction: Option<f64>,
-    pub lobes: Option<f64>,
-    pub parallel: Option<f64>,
-    /// Sets the threshold for the projection’s [adaptive
-    /// resampling](http://bl.ocks.org/mbostock/3795544) to the specified value in pixels. This
-    /// value corresponds to the [Douglas–Peucker
-    /// distance](http://en.wikipedia.org/wiki/Ramer%E2%80%93Douglas%E2%80%93Peucker_algorithm).
-    /// If precision is not specified, returns the projection’s current resampling precision
-    /// which defaults to `√0.5 ≅ 0.70710…`.
-    pub precision: Option<HashMap<String, PrecisionValue>>,
-    pub radius: Option<f64>,
-    pub ratio: Option<f64>,
-    /// Sets the projection’s three-axis rotation to the specified angles, which must be a two-
-    /// or three-element array of numbers [`lambda`, `phi`, `gamma`] specifying the rotation
-    /// angles in degrees about each spherical axis. (These correspond to yaw, pitch and roll.)
-    ///
-    /// __Default value:__ `[0, 0, 0]`
-    pub rotate: Option<Vec<f64>>,
-    pub spacing: Option<f64>,
-    pub tilt: Option<f64>,
-    /// The cartographic projection to use. This value is case-insensitive, for example
-    /// `"albers"` and `"Albers"` indicate the same projection type. You can find all valid
-    /// projection types [in the
-    /// documentation](https://vega.github.io/vega-lite/docs/projection.html#projection-types).
-    ///
-    /// __Default value:__ `mercator`
-    #[serde(rename = "type")]
-    pub projection_type: Option<VgProjectionType>,
 }
 
 /// Scale, axis, and legend resolutions for facets.
@@ -6012,6 +6794,7 @@ pub struct SelectionDef {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct TitleParams {
+    pub align: Option<Align>,
     /// The anchor position for placing the title. One of `"start"`, `"middle"`, or `"end"`. For
     /// example, with an orientation of top these anchor positions map to a left-, center-, or
     /// right-aligned title.
@@ -6025,13 +6808,36 @@ pub struct TitleParams {
     /// customizable only for [single](https://vega.github.io/vega-lite/docs/spec.html) and
     /// [layered](https://vega.github.io/vega-lite/docs/layer.html) views.  For other composite
     /// views, `anchor` is always `"start"`.
-    pub anchor: Option<Anchor>,
+    pub anchor: Option<TitleAnchor>,
+    /// Angle in degrees of title text.
+    pub angle: Option<f64>,
+    /// Vertical text baseline for title text. One of `"top"`, `"middle"`, `"bottom"`, or
+    /// `"alphabetic"`.
+    pub baseline: Option<TextBaseline>,
+    /// Text color for title text.
+    pub color: Option<String>,
+    /// Font name for title text.
+    pub font: Option<String>,
+    /// Font size in pixels for title text.
+    ///
+    /// __Default value:__ `10`.
+    #[serde(rename = "fontSize")]
+    pub font_size: Option<f64>,
+    /// Font weight for title text.
+    /// This can be either a string (e.g `"bold"`, `"normal"`) or a number (`100`, `200`, `300`,
+    /// ..., `900` where `"normal"` = `400` and `"bold"` = `700`).
+    #[serde(rename = "fontWeight")]
+    pub font_weight: Option<FontWeight>,
+    /// The reference frame for the anchor position, one of `"bounds"` (to anchor relative to the
+    /// full bounding box) or `"group"` (to anchor relative to the group width or height).
+    pub frame: Option<TitleFrame>,
+    /// The maximum allowed length in pixels of legend labels.
+    pub limit: Option<f64>,
     /// The orthogonal offset in pixels by which to displace the title from its position along
     /// the edge of the chart.
     pub offset: Option<f64>,
-    /// The orientation of the title relative to the chart. One of `"top"` (the default),
-    /// `"bottom"`, `"left"`, or `"right"`.
-    pub orient: Option<TitleOrient>,
+    /// Default title orientation (`"top"`, `"bottom"`, `"left"`, or `"right"`)
+    pub orient: Option<LegendOrient>,
     /// A [mark style property](https://vega.github.io/vega-lite/docs/config.html#style) to apply
     /// to the title text mark.
     ///
@@ -6039,6 +6845,11 @@ pub struct TitleParams {
     pub style: Option<Style>,
     /// The title text.
     pub text: String,
+    /// The integer z-index indicating the layering of the title group relative to other axis,
+    /// mark and legend groups.
+    ///
+    /// __Default value:__ `0`.
+    pub zindex: Option<f64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -6072,6 +6883,18 @@ pub struct Transform {
     /// The output fields at which to write the start and end bin values.
     ///
     /// The output field to write the timeUnit value.
+    ///
+    /// Output field names. This can be either a string or an array of strings with
+    /// two elements denoting the name for the fields for stack start and stack end
+    /// respectively.
+    /// If a single string(eg."val") is provided, the end field will be "val_end".
+    ///
+    /// The output field names for extracted array values.
+    ///
+    /// __Default value:__ The field name of the corresponding array field
+    ///
+    /// The output field names for the key and value properties produced by the fold transform.
+    /// __Default value:__ `["key", "value"]`
     #[serde(rename = "as")]
     pub transform_as: Option<Style>,
     /// A [expression](https://vega.github.io/vega-lite/docs/types.html#expression) string. Use
@@ -6087,7 +6910,7 @@ pub struct Transform {
     /// Key in primary data source.
     pub lookup: Option<String>,
     /// An object indicating bin properties, or simply `true` for using default bin parameters.
-    pub bin: Option<Bin>,
+    pub bin: Option<TransformBin>,
     /// The data field to bin.
     ///
     /// The data field to apply time unit.
@@ -6095,14 +6918,15 @@ pub struct Transform {
     /// The timeUnit.
     #[serde(rename = "timeUnit")]
     pub time_unit: Option<TimeUnit>,
-    /// Array of objects that define fields to aggregate.
-    pub aggregate: Option<Vec<AggregatedFieldDef>>,
-    /// The data fields to group by. If not specified, a single group containing all data objects
-    /// will be used.
+    /// A frame specification as a two-element array used to control the window over which the
+    /// specified method is applied. The array entries should either be a number indicating the
+    /// offset from the current data object, or null to indicate unbounded rows preceding or
+    /// following the current data object.  For example, the value `[-5, 5]` indicates that the
+    /// window should include five objects preceding and five objects following the current
+    /// object.
     ///
-    /// The data fields for partitioning the data objects into separate windows. If unspecified,
-    /// all data points will be in a single group.
-    pub groupby: Option<Vec<String>>,
+    /// __Default value:__:  `[null, null]` indicating that the window includes all objects.
+    ///
     /// A frame specification as a two-element array indicating how the sliding window should
     /// proceed. The array entries should either be a number indicating the offset from the
     /// current data object, or null to indicate unbounded rows preceding or following the
@@ -6116,6 +6940,43 @@ pub struct Transform {
     ///
     /// __Default value:__:  `[null, 0]` (includes the current object and all preceding objects)
     pub frame: Option<Vec<Option<f64>>>,
+    /// An optional array of fields by which to group the values.
+    /// Imputation will then be performed on a per-group basis.
+    ///
+    /// The data fields to group by. If not specified, a single group containing all data objects
+    /// will be used.
+    ///
+    /// The data fields for partitioning the data objects into separate windows. If unspecified,
+    /// all data points will be in a single group.
+    ///
+    /// The data fields to group by.
+    pub groupby: Option<Vec<String>>,
+    /// The data field for which the missing values should be imputed.
+    pub impute: Option<String>,
+    /// A key field that uniquely identifies data objects within a group.
+    /// Missing key values (those occurring in the data but not in the current group) will be
+    /// imputed.
+    pub key: Option<String>,
+    /// Defines the key values that should be considered for imputation.
+    /// An array of key values or an object defining a [number
+    /// sequence](https://vega.github.io/vega-lite/docs/impute.html#sequence-def).
+    ///
+    /// If provided, this will be used in addition to the key values observed within the input
+    /// data.  If not provided, the values will be derived from all unique values of the `key`
+    /// field. For `impute` in `encoding`, the key field is the x-field if the y-field is
+    /// imputed, or vice versa.
+    ///
+    /// If there is no impute grouping, this property _must_ be specified.
+    pub keyvals: Option<Keyvals>,
+    /// The imputation method to use for the field value of imputed data objects.
+    /// One of `value`, `mean`, `median`, `max` or `min`.
+    ///
+    /// __Default value:__  `"value"`
+    pub method: Option<ImputeMethod>,
+    /// The field value to use when the imputation `method` is `"value"`.
+    pub value: Option<serde_json::Value>,
+    /// Array of objects that define fields to aggregate.
+    pub aggregate: Option<Vec<AggregatedFieldDef>>,
     /// Indicates if the sliding window frame should ignore peer values. (Peer values are those
     /// considered identical by the sort criteria). The default is false, causing the window
     /// frame to expand to include all peer values. If set to true, the window frame will be
@@ -6131,9 +6992,28 @@ pub struct Transform {
     /// sort is not specified, the order is undefined: data objects are processed in the order
     /// they are observed and none are considered peers (the ignorePeers parameter is ignored and
     /// treated as if set to `true`).
+    ///
+    /// Field that determines the order of leaves in the stacked charts.
     pub sort: Option<Vec<SortField>>,
     /// The definition of the fields in the window, and what calculations to use.
     pub window: Option<Vec<WindowFieldDef>>,
+    /// Mode for stacking marks.
+    /// __Default value:__ `"zero"`
+    pub offset: Option<StackOffset>,
+    /// The field which is stacked.
+    pub stack: Option<String>,
+    /// An array of one or more data fields containing arrays to flatten.
+    /// If multiple fields are specified, their array values should have a parallel structure,
+    /// ideally with the same length.
+    /// If the lengths of parallel arrays do not match,
+    /// the longest array will be used with `null` values added for missing entries.
+    pub flatten: Option<Vec<String>>,
+    /// An array of data fields indicating the properties to fold.
+    pub fold: Option<Vec<String>>,
+    /// The maximum number of data objects to include in the sample.
+    ///
+    /// __Default value:__ `1000`
+    pub sample: Option<f64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -6226,7 +7106,7 @@ pub struct RowColNumber {
 /// __Default value:__ `"all"`.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum Align {
+pub enum AlignUnion {
     Enum(VgLayoutAlign),
     RowColVgLayoutAlign(RowColVgLayoutAlign),
 }
@@ -6256,6 +7136,8 @@ pub enum Center {
 /// This can be either a string (e.g `"bold"`, `"normal"`) or a number (`100`, `200`, `300`,
 /// ..., `900` where `"normal"` = `400` and `"bold"` = `700`).
 ///
+/// Font weight of axis tick labels.
+///
 /// Font weight of the title.
 /// This can be either a string (e.g `"bold"`, `"normal"`) or a number (`100`, `200`, `300`,
 /// ..., `900` where `"normal"` = `400` and `"bold"` = `700`).
@@ -6263,6 +7145,8 @@ pub enum Center {
 /// Font weight of the header title.
 /// This can be either a string (e.g `"bold"`, `"normal"`) or a number (`100`, `200`, `300`,
 /// ..., `900` where `"normal"` = `400` and `"bold"` = `700`).
+///
+/// The font weight of legend label.
 ///
 /// The font weight of the legend title.
 /// This can be either a string (e.g `"bold"`, `"normal"`) or a number (`100`, `200`, `300`,
@@ -6275,7 +7159,7 @@ pub enum Center {
 #[serde(untagged)]
 pub enum FontWeight {
     Double(f64),
-    Enum(FontWeightString),
+    Enum(FontWeightEnum),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -6309,11 +7193,23 @@ pub enum Line {
 /// into the data under the specified name.
 ///
 /// The output fields at which to write the start and end bin values.
+///
+/// Output field names. This can be either a string or an array of strings with
+/// two elements denoting the name for the fields for stack start and stack end
+/// respectively.
+/// If a single string(eg."val") is provided, the end field will be "val_end".
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Style {
     String(String),
     StringArray(Vec<String>),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PurpleTooltip {
+    String(String),
+    TooltipContent(TooltipContent),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -6324,8 +7220,8 @@ pub enum PointUnion {
     OverlayMarkDef(OverlayMarkDef),
 }
 
-/// Indicates if labels should be hidden if they exceed the axis range. If `false `(the
-/// default) no bounds overlap analysis is performed. If `true`, labels will be hidden if
+/// Indicates if labels should be hidden if they exceed the axis range. If `false` (the
+/// default) no bounds overlap analysis is performed. If `true`, labels will be hidden if
 /// they exceed the axis range by more than 1 pixel. If this property is a number, it
 /// specifies the pixel tolerance: the maximum amount by which a label bounding box may
 /// exceed the axis range.
@@ -6348,32 +7244,57 @@ pub enum Label {
     Double(f64),
 }
 
+/// The strategy to use for resolving overlap of axis labels. If `false` (the default), no
+/// overlap reduction is attempted. If set to `true` or `"parity"`, a strategy of removing
+/// every other label is used (this works well for standard linear axes). If set to
+/// `"greedy"`, a linear scan of the labels is performed, removing any labels that overlaps
+/// with the last visible label (this often works better for log-scaled axes).
+///
+/// __Default value:__ `true` for non-nominal fields with non-log scales; `"greedy"` for log
+/// scales; otherwise `false`.
+///
+/// The strategy to use for resolving overlap of labels in gradient legends. If `false`, no
+/// overlap reduction is attempted. If set to `true` (default) or `"parity"`, a strategy of
+/// removing every other label is used. If set to `"greedy"`, a linear scan of the labels is
+/// performed, removing any label that overlaps with the last visible label (this often works
+/// better for log-scaled axes).
+///
+/// __Default value:__ `"greedy"` for `log scales otherwise `true`.
+/// *
+///
+/// The strategy to use for resolving overlap of labels in gradient legends. If `false`, no
+/// overlap reduction is attempted. If set to `true` (default) or `"parity"`, a strategy of
+/// removing every other label is used. If set to `"greedy"`, a linear scan of the labels is
+/// performed, removing any label that overlaps with the last visible label (this often works
+/// better for log-scaled axes).
+///
+/// __Default value:__ `true`.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum LabelOverlapUnion {
+pub enum LabelOverlap {
     Bool(bool),
     Enum(LabelOverlapEnum),
 }
 
-/// The full data set, included inline. This can be an array of objects or primitive values,
-/// an object, or a string.
-/// Arrays of primitive values are ingested as objects with a `data` property. Strings are
-/// parsed according to the specified format type.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum InlineDatasetValue {
-    AnythingMap(HashMap<String, Option<serde_json::Value>>),
-    String(String),
-    UnionArray(Vec<InlineDataset>),
+pub enum BooleanOrMarkConfig {
+    Bool(bool),
+    MarkConfig(MarkConfig),
 }
 
+/// The extent of the whiskers. Available options include:
+/// - `"min-max"`: min and max are the lower and upper whiskers respectively.
+/// - A number representing multiple of the interquartile range (Q3-Q1).  This number will be
+/// multiplied by the IQR. the product will be added to the third quartile to get the upper
+/// whisker and subtracted from the first quartile to get the lower whisker.
+///
+/// __Default value:__ `1.5`.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum InlineDataset {
-    AnythingMap(HashMap<String, Option<serde_json::Value>>),
-    Bool(bool),
+pub enum BoxplotExtent {
     Double(f64),
-    String(String),
+    Enum(ExtentEnum),
 }
 
 /// The default visualization padding, in pixels, from the edge of the visualization canvas
@@ -6391,16 +7312,16 @@ pub enum Padding {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum PrecisionValue {
-    Double(f64),
-    String(String),
+pub enum RangeValue {
+    UnionArray(Vec<RangeElement>),
+    VgScheme(VgScheme),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum ConfigRange {
-    UnionArray(Vec<PrecisionValue>),
-    VgScheme(VgScheme),
+pub enum RangeElement {
+    Double(f64),
+    String(String),
 }
 
 /// When truthy, allows a user to interactively move an interval selection
@@ -6445,13 +7366,6 @@ pub enum BindValue {
     VgBinding(VgBinding),
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum Parse {
-    Enum(Cursor),
-    UnionMap(HashMap<String, Option<String>>),
-}
-
 /// The full data set, included inline. This can be an array of objects or primitive values,
 /// an object, or a string.
 /// Arrays of primitive values are ingested as objects with a `data` property. Strings are
@@ -6466,9 +7380,31 @@ pub enum DataInlineDataset {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum Bin {
+pub enum InlineDataset {
+    AnythingMap(HashMap<String, Option<serde_json::Value>>),
+    Bool(bool),
+    Double(f64),
+    String(String),
+}
+
+/// The full data set, included inline. This can be an array of objects or primitive values,
+/// an object, or a string.
+/// Arrays of primitive values are ingested as objects with a `data` property. Strings are
+/// parsed according to the specified format type.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum InlineDatasetValue {
+    AnythingMap(HashMap<String, Option<serde_json::Value>>),
+    String(String),
+    UnionArray(Vec<InlineDataset>),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum PurpleBin {
     BinParams(BinParams),
     Bool(bool),
+    Enum(BinEnum),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -6550,7 +7486,6 @@ pub enum PurpleLogicalOperandPredicate {
     String(String),
 }
 
-/// The value that the field should be equal to.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum EqualUnion {
@@ -6590,7 +7525,6 @@ pub enum Lt {
     String(String),
 }
 
-/// The value that the field should be equal to.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum SortElement {
@@ -6602,7 +7536,7 @@ pub enum SortElement {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum RangeElement {
+pub enum PurpleRange {
     DateTime(DateTime),
     Double(f64),
 }
@@ -6613,7 +7547,7 @@ pub enum RangeElement {
 /// A constant value in visual domain.
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum ConditionalValueDefValue {
+pub enum Value {
     Bool(bool),
     Double(f64),
     String(String),
@@ -6654,13 +7588,15 @@ pub enum DomainUnion {
 }
 
 /// The interpolation method for range values. By default, a general interpolator for
-/// numbers, dates, strings and colors (in RGB space) is used. For color ranges, this
+/// numbers, dates, strings and colors (in HCL space) is used. For color ranges, this
 /// property allows interpolation in alternative color spaces. Legal values include `rgb`,
 /// `hsl`, `hsl-long`, `lab`, `hcl`, `hcl-long`, `cubehelix` and `cubehelix-long` ('-long'
 /// variants use longer paths in polar coordinate spaces). If object-valued, this property
 /// accepts an object with a string-valued _type_ property and an optional numeric _gamma_
 /// property applicable to rgb and cubehelix interpolators. For more, see the [d3-interpolate
 /// documentation](https://github.com/d3/d3-interpolate).
+///
+/// * __Default value:__ `hcl`
 ///
 /// __Note:__ Sequential scales do not support `interpolate` as they have a fixed
 /// interpolator.  Since Vega-Lite uses sequential scales for quantitative fields by default,
@@ -6732,7 +7668,7 @@ pub enum NiceUnion {
 #[serde(untagged)]
 pub enum ScaleRange {
     String(String),
-    UnionArray(Vec<PrecisionValue>),
+    UnionArray(Vec<RangeElement>),
 }
 
 /// A string indicating a color
@@ -6785,18 +7721,6 @@ pub enum Sort {
     UnionArray(Vec<SortElement>),
 }
 
-/// A constant value in visual domain (e.g., `"red"` / "#0099ff" for color, values between
-/// `0` to `1` for opacity).
-///
-/// A constant value in visual domain.
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum PurpleValue {
-    Bool(bool),
-    Double(f64),
-    String(String),
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Detail {
@@ -6814,8 +7738,8 @@ pub enum HrefCondition {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Order {
-    Def(Def),
     OrderFieldDefArray(Vec<OrderFieldDef>),
+    OrderFieldDefClass(OrderFieldDefClass),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -6827,9 +7751,16 @@ pub enum TextCondition {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum Tooltip {
+pub enum EncodingTooltip {
     TextDefWithCondition(TextDefWithCondition),
     TextFieldDefArray(Vec<TextFieldDef>),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum Keyvals {
+    AnythingArray(Vec<Option<serde_json::Value>>),
+    ImputeSequence(ImputeSequence),
 }
 
 /// A string describing the mark type (one of `"bar"`, `"circle"`, `"square"`, `"tick"`,
@@ -6839,8 +7770,15 @@ pub enum Tooltip {
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum AnyMark {
-    Enum(Mark),
-    MarkDef(MarkDef),
+    BoxPlotDefClass(BoxPlotDefClass),
+    Enum(BoxPlot),
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum BoxPlotDefExtent {
+    Double(f64),
+    Enum(ExtentExtent),
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -6857,6 +7795,14 @@ pub enum Title {
     TitleParams(TitleParams),
 }
 
+/// An object indicating bin properties, or simply `true` for using default bin parameters.
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(untagged)]
+pub enum TransformBin {
+    BinParams(BinParams),
+    Bool(bool),
+}
+
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Spacing {
@@ -6864,6 +7810,12 @@ pub enum Spacing {
     RowColNumber(RowColNumber),
 }
 
+/// The alignment to apply to symbol legends rows and columns. The supported string values
+/// are `"all"`, `"each"` (the default), and `none`. For more information, see the [grid
+/// layout documentation](https://vega.github.io/vega/docs/layout).
+///
+/// __Default value:__ `"each"`.
+///
 /// By default, all data values are considered to lie within an empty selection.
 /// When set to `none`, empty selections contain no data values.
 #[derive(Debug, Serialize, Deserialize)]
@@ -6925,8 +7877,19 @@ pub enum Bounds {
 }
 
 /// The horizontal alignment of the text. One of `"left"`, `"right"`, `"center"`.
+///
+/// Horizontal text alignment of axis tick labels, overriding the default setting for the
+/// current axis orientation.
+///
+/// Horizontal text alignment of axis titles.
+///
+/// The alignment of the legend label, can be left, center, or right.
+///
+/// Horizontal text alignment for legend titles.
+///
+/// __Default value:__ `"left"`.
 #[derive(Debug, Serialize, Deserialize)]
-pub enum HorizontalAlign {
+pub enum Align {
     #[serde(rename = "center")]
     Center,
     #[serde(rename = "left")]
@@ -6939,9 +7902,30 @@ pub enum HorizontalAlign {
 ///
 /// __Default value:__ `"middle"`
 ///
-/// Vertical text baseline for title text.
+/// Vertical text baseline of axis tick labels, overriding the default setting for the
+/// current axis orientation. Can be `"top"`, `"middle"`, `"bottom"`, or `"alphabetic"`.
+///
+/// Vertical text baseline for axis titles.
+///
+/// Vertical text baseline for the header title. One of `"top"`, `"bottom"`, `"middle"`.
+///
+/// __Default value:__ `"middle"`
+///
+/// The position of the baseline of legend label, can be `"top"`, `"middle"`, `"bottom"`, or
+/// `"alphabetic"`.
+///
+/// __Default value:__ `"middle"`.
+///
+/// Vertical text baseline for legend titles.
+///
+/// __Default value:__ `"top"`.
+///
+/// Vertical text baseline for title text. One of `"top"`, `"middle"`, `"bottom"`, or
+/// `"alphabetic"`.
 #[derive(Debug, Serialize, Deserialize)]
-pub enum VerticalAlign {
+pub enum TextBaseline {
+    #[serde(rename = "alphabetic")]
+    Alphabetic,
     #[serde(rename = "bottom")]
     Bottom,
     #[serde(rename = "middle")]
@@ -7050,14 +8034,37 @@ pub enum FontStyle {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
-pub enum FontWeightString {
+pub enum FontWeightEnum {
     #[serde(rename = "bold")]
     Bold,
+    #[serde(rename = "bolder")]
+    Bolder,
+    #[serde(rename = "lighter")]
+    Lighter,
     #[serde(rename = "normal")]
     Normal,
 }
 
 /// The line interpolation method to use for line and area marks. One of the following:
+/// - `"linear"`: piecewise linear segments, as in a polyline.
+/// - `"linear-closed"`: close the linear segments to form a polygon.
+/// - `"step"`: alternate between horizontal and vertical segments, as in a step function.
+/// - `"step-before"`: alternate between vertical and horizontal segments, as in a step
+/// function.
+/// - `"step-after"`: alternate between horizontal and vertical segments, as in a step
+/// function.
+/// - `"basis"`: a B-spline, with control point duplication on the ends.
+/// - `"basis-open"`: an open B-spline; may not intersect the start or end.
+/// - `"basis-closed"`: a closed B-spline, as in a loop.
+/// - `"cardinal"`: a Cardinal spline, with control point duplication on the ends.
+/// - `"cardinal-open"`: an open Cardinal spline; may not intersect the start or end, but
+/// will intersect other control points.
+/// - `"cardinal-closed"`: a closed Cardinal spline, as in a loop.
+/// - `"bundle"`: equivalent to basis, except the tension parameter is used to straighten the
+/// spline.
+/// - `"monotone"`: cubic interpolation that preserves monotonicity in y.
+///
+/// The line interpolation method for the error band. One of the following:
 /// - `"linear"`: piecewise linear segments, as in a polyline.
 /// - `"linear-closed"`: close the linear segments to form a polygon.
 /// - `"step"`: alternate between horizontal and vertical segments, as in a step function.
@@ -7115,6 +8122,28 @@ pub enum Interpolate {
 /// if `config.sortLineBy` is not specified.
 /// For stacked charts, this is always determined by the orientation of the stack;
 /// therefore explicitly specified value will be ignored.
+///
+/// Orientation of the box plot.  This is normally automatically determined based on types of
+/// fields on x and y channels. However, an explicit `orient` be specified when the
+/// orientation is ambiguous.
+///
+/// __Default value:__ `"vertical"`.
+///
+/// Orientation of the error bar.  This is normally automatically determined, but can be
+/// specified when the orientation is ambiguous and cannot be automatically determined.
+///
+/// Orientation of the error band. This is normally automatically determined, but can be
+/// specified when the orientation is ambiguous and cannot be automatically determined.
+///
+/// The default direction (`"horizontal"` or `"vertical"`) for gradient legends.
+///
+/// __Default value:__ `"vertical"`.
+///
+/// The default direction (`"horizontal"` or `"vertical"`) for symbol legends.
+///
+/// __Default value:__ `"vertical"`.
+///
+/// The direction of the legend, one of `"vertical"` (default) or `"horizontal"`.
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Orient {
     #[serde(rename = "horizontal")]
@@ -7154,6 +8183,14 @@ pub enum StrokeJoin {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub enum Content {
+    #[serde(rename = "data")]
+    Data,
+    #[serde(rename = "encoding")]
+    Encoding,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub enum PointEnum {
     #[serde(rename = "transparent")]
     Transparent,
@@ -7165,6 +8202,43 @@ pub enum LabelOverlapEnum {
     Greedy,
     #[serde(rename = "parity")]
     Parity,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ExtentEnum {
+    #[serde(rename = "min-max")]
+    MinMax,
+}
+
+/// The extent of the band. Available options include:
+/// - `"ci"`: Extend the band to the confidence interval of the mean.
+/// - `"stderr"`: The size of band are set to the value of standard error, extending from the
+/// mean.
+/// - `"stdev"`: The size of band are set to the value of standard deviation, extending from
+/// the mean.
+/// - `"iqr"`: Extend the band to the q1 and q3.
+///
+/// __Default value:__ `"stderr"`.
+///
+/// The extent of the rule. Available options include:
+/// - `"ci"`: Extend the rule to the confidence interval of the mean.
+/// - `"stderr"`: The size of rule are set to the value of standard error, extending from the
+/// mean.
+/// - `"stdev"`: The size of rule are set to the value of standard deviation, extending from
+/// the mean.
+/// - `"iqr"`: Extend the rule to the q1 and q3.
+///
+/// __Default value:__ `"stderr"`.
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ErrorbandExtent {
+    #[serde(rename = "ci")]
+    Ci,
+    #[serde(rename = "iqr")]
+    Iqr,
+    #[serde(rename = "stderr")]
+    Stderr,
+    #[serde(rename = "stdev")]
+    Stdev,
 }
 
 /// Defines how Vega-Lite generates title for fields.  There are three possible styles:
@@ -7184,21 +8258,6 @@ pub enum FieldTitle {
     Verbal,
 }
 
-/// Vertical text baseline for the header title. One of `"top"`, `"bottom"`, `"middle"`.
-///
-/// __Default value:__ `"middle"`
-#[derive(Debug, Serialize, Deserialize)]
-pub enum TextBaseline {
-    #[serde(rename = "alphabetic")]
-    Alphabetic,
-    #[serde(rename = "bottom")]
-    Bottom,
-    #[serde(rename = "middle")]
-    Middle,
-    #[serde(rename = "top")]
-    Top,
-}
-
 #[derive(Debug, Serialize, Deserialize)]
 pub enum InvalidValues {
     #[serde(rename = "filter")]
@@ -7210,8 +8269,18 @@ pub enum InvalidValues {
 /// "none".
 ///
 /// __Default value:__ `"right"`
+///
+/// Default title orientation (`"top"`, `"bottom"`, `"left"`, or `"right"`)
+///
+/// The orientation of the axis. One of `"top"`, `"bottom"`, `"left"` or `"right"`. The
+/// orientation can be used to further specialize the axis type (e.g., a y axis oriented for
+/// the right edge of the chart).
+///
+/// __Default value:__ `"bottom"` for x-axes and `"left"` for y-axes.
 #[derive(Debug, Serialize, Deserialize)]
 pub enum LegendOrient {
+    #[serde(rename = "bottom")]
+    Bottom,
     #[serde(rename = "bottom-left")]
     BottomLeft,
     #[serde(rename = "bottom-right")]
@@ -7222,6 +8291,8 @@ pub enum LegendOrient {
     None,
     #[serde(rename = "right")]
     Right,
+    #[serde(rename = "top")]
+    Top,
     #[serde(rename = "top-left")]
     TopLeft,
     #[serde(rename = "top-right")]
@@ -7331,6 +8402,9 @@ pub enum SelectionResolution {
 }
 
 /// Default stack offset for stackable mark.
+///
+/// Mode for stacking marks.
+/// __Default value:__ `"zero"`
 #[derive(Debug, Serialize, Deserialize)]
 pub enum StackOffset {
     #[serde(rename = "center")]
@@ -7345,6 +8419,10 @@ pub enum StackOffset {
 /// example, with an orientation of top these anchor positions map to a left-, center-, or
 /// right-aligned title.
 ///
+/// The anchor position for placing the title. One of `"start"`, `"middle"`, or `"end"`. For
+/// example, with an orientation of top these anchor positions map to a left-, center-, or
+/// right-aligned title.
+///
 /// __Default value:__ `"middle"` for
 /// [single](https://vega.github.io/vega-lite/docs/spec.html) and
 /// [layered](https://vega.github.io/vega-lite/docs/layer.html) views.
@@ -7355,7 +8433,7 @@ pub enum StackOffset {
 /// [layered](https://vega.github.io/vega-lite/docs/layer.html) views.  For other composite
 /// views, `anchor` is always `"start"`.
 #[derive(Debug, Serialize, Deserialize)]
-pub enum Anchor {
+pub enum TitleAnchor {
     #[serde(rename = "end")]
     End,
     #[serde(rename = "middle")]
@@ -7364,26 +8442,14 @@ pub enum Anchor {
     Start,
 }
 
-/// Default title orientation ("top", "bottom", "left", or "right")
-///
-/// The orientation of the title relative to the chart. One of `"top"` (the default),
-/// `"bottom"`, `"left"`, or `"right"`.
-///
-/// The orientation of the axis. One of `"top"`, `"bottom"`, `"left"` or `"right"`. The
-/// orientation can be used to further specialize the axis type (e.g., a y axis oriented for
-/// the right edge of the chart).
-///
-/// __Default value:__ `"bottom"` for x-axes and `"left"` for y-axes.
+/// The reference frame for the anchor position, one of `"bounds"` (to anchor relative to the
+/// full bounding box) or `"group"` (to anchor relative to the group width or height).
 #[derive(Debug, Serialize, Deserialize)]
-pub enum TitleOrient {
-    #[serde(rename = "bottom")]
-    Bottom,
-    #[serde(rename = "left")]
-    Left,
-    #[serde(rename = "right")]
-    Right,
-    #[serde(rename = "top")]
-    Top,
+pub enum TitleFrame {
+    #[serde(rename = "bounds")]
+    Bounds,
+    #[serde(rename = "group")]
+    Group,
 }
 
 /// Type of input data: `"json"`, `"csv"`, `"tsv"`, `"dsv"`.
@@ -7467,6 +8533,12 @@ pub enum AggregateOp {
     Variance,
     #[serde(rename = "variancep")]
     Variancep,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum BinEnum {
+    #[serde(rename = "binned")]
+    Binned,
 }
 
 /// Time unit for the field to be filtered.
@@ -7581,10 +8653,6 @@ pub enum TimeUnit {
 pub enum Type {
     #[serde(rename = "geojson")]
     Geojson,
-    #[serde(rename = "latitude")]
-    Latitude,
-    #[serde(rename = "longitude")]
-    Longitude,
     #[serde(rename = "nominal")]
     Nominal,
     #[serde(rename = "ordinal")]
@@ -7683,8 +8751,11 @@ pub enum NiceTime {
 /// 3) [**Discretizing
 /// Scales**](https://vega.github.io/vega-lite/docs/scale.html#discretizing) -- mapping
 /// continuous domains to discrete output ranges
-/// ([`"bin-linear"`](https://vega.github.io/vega-lite/docs/scale.html#bin-linear) and
-/// [`"bin-ordinal"`](https://vega.github.io/vega-lite/docs/scale.html#bin-ordinal)).
+/// ([`"bin-linear"`](https://vega.github.io/vega-lite/docs/scale.html#bin-linear),
+/// [`"bin-ordinal"`](https://vega.github.io/vega-lite/docs/scale.html#bin-ordinal),
+/// [`"quantile"`](https://vega.github.io/vega-lite/docs/scale.html#quantile),
+/// [`"quantize"`](https://vega.github.io/vega-lite/docs/scale.html#quantize) and
+/// [`"threshold"`](https://vega.github.io/vega-lite/docs/scale.html#threshold).
 ///
 /// __Default value:__ please see the [scale type
 /// table](https://vega.github.io/vega-lite/docs/scale.html#type).
@@ -7706,10 +8777,16 @@ pub enum ScaleType {
     Point,
     #[serde(rename = "pow")]
     Pow,
+    #[serde(rename = "quantile")]
+    Quantile,
+    #[serde(rename = "quantize")]
+    Quantize,
     #[serde(rename = "sequential")]
     Sequential,
     #[serde(rename = "sqrt")]
     Sqrt,
+    #[serde(rename = "threshold")]
+    Threshold,
     #[serde(rename = "time")]
     Time,
     #[serde(rename = "utc")]
@@ -7725,19 +8802,48 @@ pub enum VgComparatorOrder {
     Descending,
 }
 
+/// The imputation method to use for the field value of imputed data objects.
+/// One of `value`, `mean`, `median`, `max` or `min`.
+///
+/// __Default value:__  `"value"`
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ImputeMethod {
+    #[serde(rename = "max")]
+    Max,
+    #[serde(rename = "mean")]
+    Mean,
+    #[serde(rename = "median")]
+    Median,
+    #[serde(rename = "min")]
+    Min,
+    #[serde(rename = "value")]
+    Value,
+}
+
+/// The mark type. This could a primitive mark type
+/// (one of `"bar"`, `"circle"`, `"square"`, `"tick"`, `"line"`,
+/// `"area"`, `"point"`, `"geoshape"`, `"rule"`, and `"text"`)
+/// or a composite mark type (`"boxplot"`, `"errorband"`, `"errorbar"`).
+///
 /// All types of primitive marks.
 ///
 /// The mark type.
 /// One of `"bar"`, `"circle"`, `"square"`, `"tick"`, `"line"`,
 /// `"area"`, `"point"`, `"geoshape"`, `"rule"`, and `"text"`.
 #[derive(Debug, Serialize, Deserialize)]
-pub enum Mark {
+pub enum BoxPlot {
     #[serde(rename = "area")]
     Area,
     #[serde(rename = "bar")]
     Bar,
+    #[serde(rename = "boxplot")]
+    Boxplot,
     #[serde(rename = "circle")]
     Circle,
+    #[serde(rename = "errorband")]
+    Errorband,
+    #[serde(rename = "errorbar")]
+    Errorbar,
     #[serde(rename = "geoshape")]
     Geoshape,
     #[serde(rename = "line")]
@@ -7756,6 +8862,39 @@ pub enum Mark {
     Tick,
     #[serde(rename = "trail")]
     Trail,
+}
+
+/// The extent of the band. Available options include:
+/// - `"ci"`: Extend the band to the confidence interval of the mean.
+/// - `"stderr"`: The size of band are set to the value of standard error, extending from the
+/// mean.
+/// - `"stdev"`: The size of band are set to the value of standard deviation, extending from
+/// the mean.
+/// - `"iqr"`: Extend the band to the q1 and q3.
+///
+/// __Default value:__ `"stderr"`.
+///
+/// The extent of the rule. Available options include:
+/// - `"ci"`: Extend the rule to the confidence interval of the mean.
+/// - `"stderr"`: The size of rule are set to the value of standard error, extending from the
+/// mean.
+/// - `"stdev"`: The size of rule are set to the value of standard deviation, extending from
+/// the mean.
+/// - `"iqr"`: Extend the rule to the q1 and q3.
+///
+/// __Default value:__ `"stderr"`.
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ExtentExtent {
+    #[serde(rename = "ci")]
+    Ci,
+    #[serde(rename = "iqr")]
+    Iqr,
+    #[serde(rename = "min-max")]
+    MinMax,
+    #[serde(rename = "stderr")]
+    Stderr,
+    #[serde(rename = "stdev")]
+    Stdev,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
