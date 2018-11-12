@@ -611,7 +611,7 @@ pub struct AreaConfig {
     /// used.
     /// - If `tooltip` is `{"content": "data"}`, then all fields that appear in the highlighted
     /// data point will be used.
-    pub tooltip: Option<PurpleTooltip>,
+    pub tooltip: Option<Tooltip>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -809,7 +809,7 @@ pub struct OverlayMarkDef {
     /// used.
     /// - If `tooltip` is `{"content": "data"}`, then all fields that appear in the highlighted
     /// data point will be used.
-    pub tooltip: Option<PurpleTooltip>,
+    pub tooltip: Option<Tooltip>,
     /// Offset for x2-position.
     #[serde(rename = "x2Offset")]
     pub x2_offset: Option<f64>,
@@ -1268,7 +1268,7 @@ pub struct BarConfig {
     /// used.
     /// - If `tooltip` is `{"content": "data"}`, then all fields that appear in the highlighted
     /// data point will be used.
-    pub tooltip: Option<PurpleTooltip>,
+    pub tooltip: Option<Tooltip>,
 }
 
 /// Box Config
@@ -1485,7 +1485,7 @@ pub struct MarkConfig {
     /// used.
     /// - If `tooltip` is `{"content": "data"}`, then all fields that appear in the highlighted
     /// data point will be used.
-    pub tooltip: Option<PurpleTooltip>,
+    pub tooltip: Option<Tooltip>,
 }
 
 /// ErrorBand Config
@@ -2063,7 +2063,7 @@ pub struct LineConfig {
     /// used.
     /// - If `tooltip` is `{"content": "data"}`, then all fields that appear in the highlighted
     /// data point will be used.
-    pub tooltip: Option<PurpleTooltip>,
+    pub tooltip: Option<Tooltip>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -2821,7 +2821,7 @@ pub struct TextConfig {
     /// used.
     /// - If `tooltip` is `{"content": "data"}`, then all fields that appear in the highlighted
     /// data point will be used.
-    pub tooltip: Option<PurpleTooltip>,
+    pub tooltip: Option<Tooltip>,
 }
 
 /// Tick-Specific Config
@@ -3014,7 +3014,7 @@ pub struct TickConfig {
     /// used.
     /// - If `tooltip` is `{"content": "data"}`, then all fields that appear in the highlighted
     /// data point will be used.
-    pub tooltip: Option<PurpleTooltip>,
+    pub tooltip: Option<Tooltip>,
 }
 
 /// Title configuration, which determines default properties for all
@@ -6657,7 +6657,7 @@ pub struct BoxPlotDefClass {
     /// used.
     /// - If `tooltip` is `{"content": "data"}`, then all fields that appear in the highlighted
     /// data point will be used.
-    pub tooltip: Option<PurpleTooltip>,
+    pub tooltip: Option<Tooltip>,
     /// Offset for x2-position.
     #[serde(rename = "x2Offset")]
     pub x2_offset: Option<f64>,
@@ -7207,7 +7207,7 @@ pub enum Style {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum PurpleTooltip {
+pub enum Tooltip {
     String(String),
     TooltipContent(TooltipContent),
 }
