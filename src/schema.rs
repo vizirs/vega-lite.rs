@@ -3381,7 +3381,7 @@ pub struct MarkPropDefWithCondition {
     /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
     ///
     /// __Default value:__ `false`
-    pub bin: Option<PurpleBin>,
+    pub bin: Option<Bin>,
     /// One or more value definition(s) with a selection predicate.
     ///
     /// __Note:__ A field definition's `condition` property can only contain [value
@@ -3634,7 +3634,7 @@ pub struct ConditionalPredicateMarkPropFieldDefClass {
     /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
     ///
     /// __Default value:__ `false`
-    pub bin: Option<PurpleBin>,
+    pub bin: Option<Bin>,
     /// __Required.__ A string defining the name of the field from which to pull a data value
     /// or an object defining iterated values from the
     /// [`repeat`](https://vega.github.io/vega-lite/docs/repeat.html) operator.
@@ -4274,7 +4274,7 @@ pub struct FacetFieldDef {
     /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
     ///
     /// __Default value:__ `false`
-    pub bin: Option<PurpleBin>,
+    pub bin: Option<Bin>,
     /// __Required.__ A string defining the name of the field from which to pull a data value
     /// or an object defining iterated values from the
     /// [`repeat`](https://vega.github.io/vega-lite/docs/repeat.html) operator.
@@ -4502,7 +4502,7 @@ pub struct FieldDef {
     /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
     ///
     /// __Default value:__ `false`
-    pub bin: Option<PurpleBin>,
+    pub bin: Option<Bin>,
     /// __Required.__ A string defining the name of the field from which to pull a data value
     /// or an object defining iterated values from the
     /// [`repeat`](https://vega.github.io/vega-lite/docs/repeat.html) operator.
@@ -4587,7 +4587,7 @@ pub struct DefWithCondition {
     /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
     ///
     /// __Default value:__ `false`
-    pub bin: Option<PurpleBin>,
+    pub bin: Option<Bin>,
     /// One or more value definition(s) with a selection predicate.
     ///
     /// __Note:__ A field definition's `condition` property can only contain [value
@@ -4675,7 +4675,7 @@ pub struct ConditionalPredicateFieldDefClass {
     /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
     ///
     /// __Default value:__ `false`
-    pub bin: Option<PurpleBin>,
+    pub bin: Option<Bin>,
     /// __Required.__ A string defining the name of the field from which to pull a data value
     /// or an object defining iterated values from the
     /// [`repeat`](https://vega.github.io/vega-lite/docs/repeat.html) operator.
@@ -4746,7 +4746,7 @@ pub struct OrderFieldDef {
     /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
     ///
     /// __Default value:__ `false`
-    pub bin: Option<PurpleBin>,
+    pub bin: Option<Bin>,
     /// __Required.__ A string defining the name of the field from which to pull a data value
     /// or an object defining iterated values from the
     /// [`repeat`](https://vega.github.io/vega-lite/docs/repeat.html) operator.
@@ -4820,7 +4820,7 @@ pub struct OrderFieldDefClass {
     /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
     ///
     /// __Default value:__ `false`
-    pub bin: Option<PurpleBin>,
+    pub bin: Option<Bin>,
     /// __Required.__ A string defining the name of the field from which to pull a data value
     /// or an object defining iterated values from the
     /// [`repeat`](https://vega.github.io/vega-lite/docs/repeat.html) operator.
@@ -4910,7 +4910,7 @@ pub struct TextClass {
     /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
     ///
     /// __Default value:__ `false`
-    pub bin: Option<PurpleBin>,
+    pub bin: Option<Bin>,
     /// One or more value definition(s) with a selection predicate.
     ///
     /// __Note:__ A field definition's `condition` property can only contain [value
@@ -5001,7 +5001,7 @@ pub struct ConditionalPredicateTextFieldDefClass {
     /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
     ///
     /// __Default value:__ `false`
-    pub bin: Option<PurpleBin>,
+    pub bin: Option<Bin>,
     /// __Required.__ A string defining the name of the field from which to pull a data value
     /// or an object defining iterated values from the
     /// [`repeat`](https://vega.github.io/vega-lite/docs/repeat.html) operator.
@@ -5075,7 +5075,7 @@ pub struct TextFieldDef {
     /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
     ///
     /// __Default value:__ `false`
-    pub bin: Option<PurpleBin>,
+    pub bin: Option<Bin>,
     /// __Required.__ A string defining the name of the field from which to pull a data value
     /// or an object defining iterated values from the
     /// [`repeat`](https://vega.github.io/vega-lite/docs/repeat.html) operator.
@@ -5161,7 +5161,7 @@ pub struct TextDefWithCondition {
     /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
     ///
     /// __Default value:__ `false`
-    pub bin: Option<PurpleBin>,
+    pub bin: Option<Bin>,
     /// One or more value definition(s) with a selection predicate.
     ///
     /// __Note:__ A field definition's `condition` property can only contain [value
@@ -5256,7 +5256,7 @@ pub struct XClass {
     /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
     ///
     /// __Default value:__ `false`
-    pub bin: Option<PurpleBin>,
+    pub bin: Option<Bin>,
     /// __Required.__ A string defining the name of the field from which to pull a data value
     /// or an object defining iterated values from the
     /// [`repeat`](https://vega.github.io/vega-lite/docs/repeat.html) operator.
@@ -5752,7 +5752,7 @@ pub struct X2Class {
     /// [`tickStep`](https://vega.github.io/vega-lite/docs/axis.html#ticks) property.
     ///
     /// __Default value:__ `false`
-    pub bin: Option<PurpleBin>,
+    pub bin: Option<Bin>,
     /// __Required.__ A string defining the name of the field from which to pull a data value
     /// or an object defining iterated values from the
     /// [`repeat`](https://vega.github.io/vega-lite/docs/repeat.html) operator.
@@ -7401,7 +7401,7 @@ pub enum InlineDatasetValue {
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum PurpleBin {
+pub enum Bin {
     BinParams(BinParams),
     Bool(bool),
     Enum(BinEnum),
