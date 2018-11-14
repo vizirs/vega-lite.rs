@@ -3519,27 +3519,27 @@ pub struct BinParams {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConditionalValueDef {
-    pub test: Option<PurpleLogicalOperandPredicate>,
+    pub test: Option<LogicalOperandPredicate>,
     /// A constant value in visual domain (e.g., `"red"` / "#0099ff" for color, values between
     /// `0` to `1` for opacity).
     pub value: Option<Value>,
     /// A [selection name](https://vega.github.io/vega-lite/docs/selection.html), or a series of
     /// [composed selections](https://vega.github.io/vega-lite/docs/selection.html#compose).
-    pub selection: Option<PurpleSelectionOperand>,
+    pub selection: Option<SelectionOperand>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Selection {
-    pub not: Option<Box<PurpleSelectionOperand>>,
-    pub and: Option<Vec<SelectionOperandElement>>,
-    pub or: Option<Vec<SelectionOperandElement>>,
+    pub not: Option<Box<SelectionOperand>>,
+    pub and: Option<Vec<SelectionOperand>>,
+    pub or: Option<Vec<SelectionOperand>>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Predicate {
-    pub not: Option<Box<PurpleLogicalOperandPredicate>>,
-    pub and: Option<Vec<LogicalOperandPredicateElement>>,
-    pub or: Option<Vec<LogicalOperandPredicateElement>>,
+    pub not: Option<Box<LogicalOperandPredicate>>,
+    pub and: Option<Vec<LogicalOperandPredicate>>,
+    pub or: Option<Vec<LogicalOperandPredicate>>,
     /// The value that the field should be equal to.
     pub equal: Option<EqualUnion>,
     /// Field to be filtered.
@@ -3566,7 +3566,7 @@ pub struct Predicate {
     /// [`NaN`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/NaN).
     pub valid: Option<bool>,
     /// Filter using a selection name.
-    pub selection: Option<Box<PurpleSelectionOperand>>,
+    pub selection: Option<Box<SelectionOperand>>,
 }
 
 /// Object for defining datetime in Vega-Lite Filter.
@@ -3606,13 +3606,13 @@ pub struct DateTime {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConditionalPredicateMarkPropFieldDefClass {
-    pub test: Option<PurpleLogicalOperandPredicate>,
+    pub test: Option<LogicalOperandPredicate>,
     /// A constant value in visual domain (e.g., `"red"` / "#0099ff" for color, values between
     /// `0` to `1` for opacity).
     pub value: Option<Value>,
     /// A [selection name](https://vega.github.io/vega-lite/docs/selection.html), or a series of
     /// [composed selections](https://vega.github.io/vega-lite/docs/selection.html#compose).
-    pub selection: Option<PurpleSelectionOperand>,
+    pub selection: Option<SelectionOperand>,
     /// Aggregation function for the field
     /// (e.g., `mean`, `sum`, `median`, `min`, `max`, `count`).
     ///
@@ -4647,13 +4647,13 @@ pub struct DefWithCondition {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConditionalPredicateFieldDefClass {
-    pub test: Option<PurpleLogicalOperandPredicate>,
+    pub test: Option<LogicalOperandPredicate>,
     /// A constant value in visual domain (e.g., `"red"` / "#0099ff" for color, values between
     /// `0` to `1` for opacity).
     pub value: Option<Value>,
     /// A [selection name](https://vega.github.io/vega-lite/docs/selection.html), or a series of
     /// [composed selections](https://vega.github.io/vega-lite/docs/selection.html#compose).
-    pub selection: Option<PurpleSelectionOperand>,
+    pub selection: Option<SelectionOperand>,
     /// Aggregation function for the field
     /// (e.g., `mean`, `sum`, `median`, `min`, `max`, `count`).
     ///
@@ -4973,13 +4973,13 @@ pub struct TextClass {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConditionalPredicateTextFieldDefClass {
-    pub test: Option<PurpleLogicalOperandPredicate>,
+    pub test: Option<LogicalOperandPredicate>,
     /// A constant value in visual domain (e.g., `"red"` / "#0099ff" for color, values between
     /// `0` to `1` for opacity).
     pub value: Option<Value>,
     /// A [selection name](https://vega.github.io/vega-lite/docs/selection.html), or a series of
     /// [composed selections](https://vega.github.io/vega-lite/docs/selection.html#compose).
-    pub selection: Option<PurpleSelectionOperand>,
+    pub selection: Option<SelectionOperand>,
     /// Aggregation function for the field
     /// (e.g., `mean`, `sum`, `median`, `min`, `max`, `count`).
     ///
@@ -6872,7 +6872,7 @@ pub struct Transform {
     /// predicate](https://vega.github.io/vega-lite/docs/filter.html#selection-predicate)
     ///
     /// 4) a logical operand that combines (1), (2), or (3).
-    pub filter: Option<PurpleLogicalOperandPredicate>,
+    pub filter: Option<LogicalOperandPredicate>,
     /// The field for storing the computed formula value.
     ///
     /// The field or fields for storing the computed formula value.
@@ -7420,18 +7420,7 @@ pub enum ColorCondition {
 /// [composed selections](https://vega.github.io/vega-lite/docs/selection.html#compose).
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum SelectionOperandElement {
-    Selection(Selection),
-    String(String),
-}
-
-/// Filter using a selection name.
-///
-/// A [selection name](https://vega.github.io/vega-lite/docs/selection.html), or a series of
-/// [composed selections](https://vega.github.io/vega-lite/docs/selection.html#compose).
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum PurpleSelectionOperand {
+pub enum SelectionOperand {
     Selection(Selection),
     String(String),
 }
@@ -7456,32 +7445,7 @@ pub enum PurpleSelectionOperand {
 /// 4) a logical operand that combines (1), (2), or (3).
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(untagged)]
-pub enum LogicalOperandPredicateElement {
-    Predicate(Predicate),
-    String(String),
-}
-
-/// The `filter` property must be one of the predicate definitions:
-///
-/// 1) an [expression](https://vega.github.io/vega-lite/docs/types.html#expression) string,
-/// where `datum` can be used to refer to the current data object
-///
-/// 2) one of the field predicates:
-/// [`equal`](https://vega.github.io/vega-lite/docs/filter.html#equal-predicate),
-/// [`lt`](https://vega.github.io/vega-lite/docs/filter.html#lt-predicate),
-/// [`lte`](https://vega.github.io/vega-lite/docs/filter.html#lte-predicate),
-/// [`gt`](https://vega.github.io/vega-lite/docs/filter.html#gt-predicate),
-/// [`gte`](https://vega.github.io/vega-lite/docs/filter.html#gte-predicate),
-/// [`range`](https://vega.github.io/vega-lite/docs/filter.html#range-predicate),
-/// or [`oneOf`](https://vega.github.io/vega-lite/docs/filter.html#one-of-predicate).
-///
-/// 3) a [selection
-/// predicate](https://vega.github.io/vega-lite/docs/filter.html#selection-predicate)
-///
-/// 4) a logical operand that combines (1), (2), or (3).
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum PurpleLogicalOperandPredicate {
+pub enum LogicalOperandPredicate {
     Predicate(Predicate),
     String(String),
 }
