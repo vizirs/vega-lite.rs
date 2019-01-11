@@ -14,7 +14,7 @@
 extern crate serde_json;
 use std::collections::HashMap;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Vegalite {
     /// URL to [JSON schema](http://json-schema.org/) for a Vega-Lite specification. Unless you
     /// have a reason to change this, use `https://vega.github.io/schema/vega-lite/v3.json`.
@@ -241,13 +241,13 @@ pub struct Vegalite {
     pub hconcat: Option<Vec<Spec>>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct RowColVgLayoutAlign {
     pub column: Option<VgLayoutAlign>,
     pub row: Option<VgLayoutAlign>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AutoSizeParams {
     /// Determines how size calculation should be performed, one of `"content"` or `"padding"`.
     /// The default setting (`"content"`) interprets the width and height settings as the data
@@ -274,7 +274,7 @@ pub struct AutoSizeParams {
     pub auto_size_params_type: Option<AutosizeType>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct RowColBoolean {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub column: Option<bool>,
@@ -284,7 +284,7 @@ pub struct RowColBoolean {
 
 /// Vega-Lite configuration object.  This property can only be defined at the top-level of a
 /// specification.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Config {
     /// Area-Specific Config
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -483,7 +483,7 @@ pub struct Config {
 }
 
 /// Area-Specific Config
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AreaConfig {
     /// The horizontal alignment of the text. One of `"left"`, `"right"`, `"center"`.
     pub align: Option<Align>,
@@ -923,7 +923,7 @@ pub struct TooltipContent {
 /// X-axis specific config.
 ///
 /// Y-axis specific config.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AxisConfig {
     /// An interpolation fraction indicating where, for `band` scales, axis ticks should be
     /// positioned. A value of `0` places ticks at the left edge of their bands. A value of `0.5`
@@ -1148,7 +1148,7 @@ pub struct AxisConfig {
 }
 
 /// Bar-Specific Config
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct BarConfig {
     /// The horizontal alignment of the text. One of `"left"`, `"right"`, `"center"`.
     pub align: Option<Align>,
@@ -1348,7 +1348,7 @@ pub struct BarConfig {
 }
 
 /// Box Config
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct BoxPlotConfig {
     #[serde(rename = "box")]
     pub box_plot_config_box: Option<BooleanOrMarkConfig>,
@@ -1381,7 +1381,7 @@ pub struct BoxPlotConfig {
 /// Rule-Specific Config
 ///
 /// Square-Specific Config
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct MarkConfig {
     /// The horizontal alignment of the text. One of `"left"`, `"right"`, `"center"`.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1602,7 +1602,7 @@ pub struct MarkConfig {
 }
 
 /// ErrorBand Config
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ErrorBandConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub band: Option<BooleanOrMarkConfig>,
@@ -1645,7 +1645,7 @@ pub struct ErrorBandConfig {
 }
 
 /// ErrorBar Config
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ErrorBarConfig {
     /// The extent of the rule. Available options include:
     /// - `"ci"`: Extend the rule to the confidence interval of the mean.
@@ -1668,7 +1668,7 @@ pub struct ErrorBarConfig {
 /// [header](https://vega.github.io/vega-lite/docs/header.html). For a full list of header
 /// configuration options, please see the [corresponding section of in the header
 /// documentation](https://vega.github.io/vega-lite/docs/header.html#config).
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct HeaderConfig {
     /// The rotation angle of the header labels.
     ///
@@ -1768,7 +1768,7 @@ pub struct HeaderConfig {
 /// [legends](https://vega.github.io/vega-lite/docs/legend.html). For a full list of legend
 /// configuration options, please see the [corresponding section of in the legend
 /// documentation](https://vega.github.io/vega-lite/docs/legend.html#config).
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct LegendConfig {
     /// The height in pixels to clip symbol legend entries and limit their size.
     #[serde(rename = "clipHeight")]
@@ -2057,7 +2057,7 @@ pub struct LegendConfig {
 /// Line-Specific Config
 ///
 /// Trail-Specific Config
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct LineConfig {
     /// The horizontal alignment of the text. One of `"left"`, `"right"`, `"center"`.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -2292,7 +2292,7 @@ pub struct LineConfig {
     pub tooltip: Option<Tooltip>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct PaddingClass {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub bottom: Option<f64>,
@@ -2316,7 +2316,7 @@ pub struct PaddingClass {
 /// and to `latitude` and `"longitude"` channels for other marks.
 ///
 /// An object defining properties of the geographic projection shared by underlying layers.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Projection {
     /// Sets the projection’s center to the specified center, a two-element array of longitude
     /// and latitude in degrees.
@@ -2381,7 +2381,7 @@ pub struct Projection {
     pub projection_type: Option<VgProjectionType>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct VgScheme {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub count: Option<f64>,
@@ -2397,7 +2397,7 @@ pub struct VgScheme {
 /// [scales](https://vega.github.io/vega-lite/docs/scale.html). For a full list of scale
 /// configuration options, please see the [corresponding section of the scale
 /// documentation](https://vega.github.io/vega-lite/docs/scale.html#config).
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ScaleConfig {
     /// Default inner padding for `x` and `y` band-ordinal scales.
     ///
@@ -2539,7 +2539,7 @@ pub struct ScaleConfig {
 }
 
 /// An object hash for defining default properties for each type of selections.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct SelectionConfig {
     /// The default definition for an
     /// [`interval`](https://vega.github.io/vega-lite/docs/selection.html#type) selection. All
@@ -2577,7 +2577,7 @@ pub struct SelectionConfig {
 ///
 /// For instance, setting `interval` to `{"translate": false}` disables the ability to move
 /// interval selections by default.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct IntervalSelectionConfig {
     /// Establishes a two-way binding between the interval selection and the scales
     /// used within the same view. This allows a user to interactively pan and
@@ -2636,7 +2636,7 @@ pub struct IntervalSelectionConfig {
 /// An interval selection also adds a rectangle mark to depict the
 /// extents of the interval. The `mark` property can be used to customize the
 /// appearance of the mark.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct BrushConfig {
     /// The fill color of the interval mark.
     ///
@@ -2680,7 +2680,7 @@ pub struct BrushConfig {
 ///
 /// For instance, setting `multi` to `{"toggle": "event.altKey"}` adds additional values to
 /// multi selections when clicking with the alt-key pressed by default.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct MultiSelectionConfig {
     /// By default, all data values are considered to lie within an empty selection.
     /// When set to `none`, empty selections contain no data values.
@@ -2732,7 +2732,7 @@ pub struct MultiSelectionConfig {
 ///
 /// For instance, setting `single` to `{"on": "dblclick"}` populates single selections on
 /// double-click by default.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct SingleSelectionConfig {
     /// Establish a two-way binding between a single selection and input elements
     /// (also known as dynamic query widgets). A binding takes the form of
@@ -2775,7 +2775,7 @@ pub struct SingleSelectionConfig {
     pub resolve: Option<SelectionResolution>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct VgBinding {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub element: Option<String>,
@@ -2790,7 +2790,7 @@ pub struct VgBinding {
     pub step: Option<f64>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct VgMarkConfig {
     /// The horizontal alignment of the text. One of `"left"`, `"right"`, `"center"`.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -2981,7 +2981,7 @@ pub struct VgMarkConfig {
 }
 
 /// Text-Specific Config
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct TextConfig {
     /// The horizontal alignment of the text. One of `"left"`, `"right"`, `"center"`.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -3206,7 +3206,7 @@ pub struct TextConfig {
 }
 
 /// Tick-Specific Config
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct TickConfig {
     /// The horizontal alignment of the text. One of `"left"`, `"right"`, `"center"`.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -3441,7 +3441,7 @@ pub struct TickConfig {
 /// [titles](https://vega.github.io/vega-lite/docs/title.html). For a full list of title
 /// configuration options, please see the [corresponding section of the title
 /// documentation](https://vega.github.io/vega-lite/docs/title.html#config).
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct VgTitleConfig {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub align: Option<Align>,
@@ -3493,7 +3493,7 @@ pub struct VgTitleConfig {
 
 /// Default properties for [single view
 /// plots](https://vega.github.io/vega-lite/docs/spec.html#single).
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ViewConfig {
     /// Whether the view should be clipped.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -3568,7 +3568,7 @@ pub struct ViewConfig {
 /// An object describing the data source
 ///
 /// Secondary data source to lookup in.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Data {
     /// An object that specifies the format for parsing the data.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -3589,7 +3589,7 @@ pub struct Data {
 }
 
 /// An object that specifies the format for parsing the data.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct DataFormat {
     /// If set to `null`, disable type inference based on the spec and only use type inference
     /// based on the data.
@@ -3646,7 +3646,7 @@ pub struct DataFormat {
 ///
 /// A shared key-value mapping between encoding channels and definition of fields in the
 /// underlying layers.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Encoding {
     /// Color of the marks – either fill or stroke color based on  the `filled` property of mark
     /// definition.
@@ -3834,7 +3834,7 @@ pub struct Encoding {
 /// condition: {field: ...} | {value: ...},
 /// value: ...,
 /// }
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct MarkPropDefWithCondition {
     /// Aggregation function for the field
     /// (e.g., `mean`, `sum`, `median`, `min`, `max`, `count`).
@@ -3966,7 +3966,7 @@ pub struct MarkPropDefWithCondition {
 }
 
 /// Binning properties or boolean flag for determining whether to bin data or not.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct BinParams {
     /// A value in the binned domain at which to anchor the bins, shifting the bin boundaries if
     /// necessary to ensure that a boundary aligns with the anchor value.
@@ -4013,7 +4013,7 @@ pub struct BinParams {
     pub steps: Option<Vec<f64>>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ConditionalValueDef {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub test: Option<LogicalOperandPredicate>,
@@ -4027,7 +4027,7 @@ pub struct ConditionalValueDef {
     pub selection: Option<SelectionOperand>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Selection {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub not: Option<Box<SelectionOperand>>,
@@ -4037,7 +4037,7 @@ pub struct Selection {
     pub or: Option<Vec<SelectionOperand>>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Predicate {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub not: Option<Box<LogicalOperandPredicate>>,
@@ -4089,7 +4089,7 @@ pub struct Predicate {
 /// If both month and quarter are provided, month has higher precedence.
 /// `day` cannot be combined with other date.
 /// We accept string for month and day names.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct DateTime {
     /// Integer value representing the date from 1-31.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -4130,7 +4130,7 @@ pub struct DateTime {
     pub year: Option<f64>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ConditionalPredicateMarkPropFieldDefClass {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub test: Option<LogicalOperandPredicate>,
@@ -4266,7 +4266,7 @@ pub struct RepeatRef {
 }
 
 /// Properties of a legend or boolean flag for determining whether to show it.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Legend {
     /// The height in pixels to clip symbol legend entries and limit their size.
     #[serde(rename = "clipHeight")]
@@ -4563,7 +4563,7 @@ pub struct Legend {
     pub zindex: Option<f64>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Scale {
     /// The logarithm base of the `log` scale (default `10`).
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -4787,7 +4787,7 @@ pub struct Scale {
     pub zero: Option<bool>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct DomainClass {
     /// The field name to extract selected values for, when a selection is
     /// [projected](https://vega.github.io/vega-lite/docs/project.html)
@@ -4811,13 +4811,13 @@ pub struct ScaleInterpolateParams {
     pub scale_interpolate_params_type: ScaleInterpolateParamsType,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct NiceClass {
     pub interval: String,
     pub step: f64,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct SchemeParams {
     /// The number of colors to use in the scheme. This can be useful for scale types such as
     /// `"quantize"`, which use the length of the scale range to determine the number of discrete
@@ -4968,7 +4968,7 @@ pub struct FacetFieldDef {
 /// An object defining properties of a facet's header.
 ///
 /// Headers of row / column channels for faceted plots.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Header {
     /// The formatting pattern for labels. This is D3's [number format
     /// pattern](https://github.com/d3/d3-format#locale_format) for quantitative fields and D3's
@@ -5204,7 +5204,7 @@ pub struct FieldDef {
 /// condition: {field: ...} | {value: ...},
 /// value: ...,
 /// }
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct DefWithCondition {
     /// Aggregation function for the field
     /// (e.g., `mean`, `sum`, `median`, `min`, `max`, `count`).
@@ -5293,7 +5293,7 @@ pub struct DefWithCondition {
     pub value: Option<Value>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ConditionalPredicateFieldDefClass {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub test: Option<LogicalOperandPredicate>,
@@ -5460,7 +5460,7 @@ pub struct OrderFieldDef {
 }
 
 /// Definition object for a constant value of an encoding channel.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct OrderFieldDefClass {
     /// Aggregation function for the field
     /// (e.g., `mean`, `sum`, `median`, `min`, `max`, `count`).
@@ -5558,7 +5558,7 @@ pub struct OrderFieldDefClass {
 /// condition: {field: ...} | {value: ...},
 /// value: ...,
 /// }
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct TextClass {
     /// Aggregation function for the field
     /// (e.g., `mean`, `sum`, `median`, `min`, `max`, `count`).
@@ -5651,7 +5651,7 @@ pub struct TextClass {
     pub value: Option<Value>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ConditionalPredicateTextFieldDefClass {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub test: Option<LogicalOperandPredicate>,
@@ -5834,7 +5834,7 @@ pub struct TextFieldDef {
 /// condition: {field: ...} | {value: ...},
 /// value: ...,
 /// }
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct TextDefWithCondition {
     /// Aggregation function for the field
     /// (e.g., `mean`, `sum`, `median`, `min`, `max`, `count`).
@@ -5932,7 +5932,7 @@ pub struct TextDefWithCondition {
 /// Y coordinates of the marks, or height of vertical `"bar"` and `"area"`.
 ///
 /// Definition object for a constant value of an encoding channel.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct XClass {
     /// Aggregation function for the field
     /// (e.g., `mean`, `sum`, `median`, `min`, `max`, `count`).
@@ -6085,7 +6085,7 @@ pub struct XClass {
     pub value: Option<Value>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Axis {
     /// An interpolation fraction indicating where, for `band` scales, axis ticks should be
     /// positioned. A value of `0` places ticks at the left edge of their bands. A value of `0.5`
@@ -6438,7 +6438,7 @@ pub struct Axis {
 /// Operation.
 /// The field of the `color` channel if specified is used as `groupby` of the `Impute`
 /// Operation.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ImputeParams {
     /// A frame specification as a two-element array used to control the window over which the
     /// specified method is applied. The array entries should either be a number indicating the
@@ -6473,7 +6473,7 @@ pub struct ImputeParams {
     pub value: Option<serde_json::Value>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ImputeSequence {
     /// The starting value of the sequence.
     /// __Default value:__ `0`
@@ -6508,7 +6508,7 @@ pub struct ImputeSequence {
 /// and  `"rule"`.
 ///
 /// Definition object for a constant value of an encoding channel.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct X2Class {
     /// Aggregation function for the field
     /// (e.g., `mean`, `sum`, `median`, `min`, `max`, `count`).
@@ -6591,7 +6591,7 @@ pub struct X2Class {
 
 /// An object that describes mappings between `row` and `column` channels and their field
 /// definitions.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct FacetMapping {
     /// Horizontal facets for trellis plots.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -6606,7 +6606,7 @@ pub struct FacetMapping {
 /// Layer Spec with encoding and projection
 ///
 /// Unit spec that can have a composite mark and row or column channels.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct SpecClass {
     /// An object describing the data source
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -6793,7 +6793,7 @@ pub struct SpecClass {
 /// Unit spec that can have a composite mark and row or column channels.
 ///
 /// Layer Spec with encoding and projection
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Spec {
     /// An object describing the data source
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -6980,7 +6980,7 @@ pub struct Spec {
 /// Layer Spec with encoding and projection
 ///
 /// Unit spec that can have a composite mark.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct LayerSpec {
     /// An object describing the data source
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -7089,7 +7089,7 @@ pub struct LayerSpec {
 /// underlying layers.
 ///
 /// A key-value mapping between encoding channels and definition of fields.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct LayerEncoding {
     /// Color of the marks – either fill or stroke color based on  the `filled` property of mark
     /// definition.
@@ -7604,7 +7604,7 @@ pub struct BoxPlotDefClass {
 /// Scale, axis, and legend resolutions for vertically concatenated charts.
 ///
 /// Scale, axis, and legend resolutions for horizontally concatenated charts.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Resolve {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub axis: Option<AxisResolveMap>,
@@ -7614,7 +7614,7 @@ pub struct Resolve {
     pub scale: Option<ScaleResolveMap>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct AxisResolveMap {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub x: Option<ResolveMode>,
@@ -7622,7 +7622,7 @@ pub struct AxisResolveMap {
     pub y: Option<ResolveMode>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct LegendResolveMap {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub color: Option<ResolveMode>,
@@ -7638,7 +7638,7 @@ pub struct LegendResolveMap {
     pub stroke: Option<ResolveMode>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct ScaleResolveMap {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub color: Option<ResolveMode>,
@@ -7742,7 +7742,7 @@ pub struct SelectionDef {
     pub zoom: Option<Translate>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct TitleParams {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub align: Option<Align>,
@@ -7816,7 +7816,7 @@ pub struct TitleParams {
     pub zindex: Option<f64>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Transform {
     /// The `filter` property must be one of the predicate definitions:
     ///
@@ -8021,7 +8021,7 @@ pub struct AggregatedFieldDef {
 }
 
 /// Secondary data reference.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct LookupData {
     /// Secondary data source to lookup in.
     pub data: Data,
@@ -8034,7 +8034,7 @@ pub struct LookupData {
 }
 
 /// A sort definition for transform
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct SortField {
     /// The name of the field to sort.
     pub field: String,
@@ -8068,7 +8068,7 @@ pub struct WindowFieldDef {
 
 /// An object that describes what fields should be repeated into views that are laid out as a
 /// `row` or `column`.
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct Repeat {
     /// Horizontal repeated views.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -8078,7 +8078,7 @@ pub struct Repeat {
     pub row: Option<Vec<String>>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct RowColNumber {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub column: Option<f64>,
@@ -8696,7 +8696,7 @@ pub enum HrefCondition {
     ConditionalValueDefArray(Vec<ConditionalValueDef>),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive( Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum Order {
     OrderFieldDefArray(Vec<OrderFieldDef>),
