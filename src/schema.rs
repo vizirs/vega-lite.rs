@@ -8156,7 +8156,14 @@ pub enum Center {
 #[serde(untagged)]
 pub enum FontWeight {
     Double(f64),
-    Enum(FontWeightEnum),
+    #[serde(rename = "bold")]
+    Bold,
+    #[serde(rename = "bolder")]
+    Bolder,
+    #[serde(rename = "lighter")]
+    Lighter,
+    #[serde(rename = "normal")]
+    Normal,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -8213,7 +8220,8 @@ pub enum Tooltip {
 #[serde(untagged)]
 pub enum PointUnion {
     Bool(bool),
-    Enum(PointEnum),
+    #[serde(rename = "transparent")]
+    Transparent,
     OverlayMarkDef(OverlayMarkDef),
 }
 
@@ -8270,7 +8278,10 @@ pub enum Label {
 #[serde(untagged)]
 pub enum LabelOverlap {
     Bool(bool),
-    Enum(LabelOverlapEnum),
+    #[serde(rename = "greedy")]
+    Greedy,
+    #[serde(rename = "parity")]
+    Parity,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -8291,7 +8302,8 @@ pub enum BooleanOrMarkConfig {
 #[serde(untagged)]
 pub enum BoxplotExtent {
     Double(f64),
-    Enum(ExtentEnum),
+    #[serde(rename = "min-max")]
+    MinMax,
 }
 
 /// The default visualization padding, in pixels, from the edge of the visualization canvas
@@ -8401,7 +8413,8 @@ pub enum InlineDatasetValue {
 pub enum Bin {
     BinParams(BinParams),
     Bool(bool),
-    Enum(BinEnum),
+    #[serde(rename = "binned")]
+    Binned,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -8544,7 +8557,8 @@ pub enum Field {
 #[serde(untagged)]
 pub enum DomainUnion {
     DomainClass(DomainClass),
-    Enum(Domain),
+    #[serde(rename = "unaggregated")]
+    Unaggregated,
     UnionArray(Vec<SortElement>),
 }
 
@@ -8566,7 +8580,22 @@ pub enum DomainUnion {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum InterpolateUnion {
-    Enum(ScaleInterpolate),
+    #[serde(rename = "cubehelix")]
+    Cubehelix,
+    #[serde(rename = "cubehelix-long")]
+    CubehelixLong,
+    #[serde(rename = "hcl")]
+    Hcl,
+    #[serde(rename = "hcl-long")]
+    HclLong,
+    #[serde(rename = "hsl")]
+    Hsl,
+    #[serde(rename = "hsl-long")]
+    HslLong,
+    #[serde(rename = "lab")]
+    Lab,
+    #[serde(rename = "rgb")]
+    Rgb,
     ScaleInterpolateParams(ScaleInterpolateParams),
 }
 
@@ -8994,18 +9023,6 @@ pub enum FontStyle {
     Normal,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum FontWeightEnum {
-    #[serde(rename = "bold")]
-    Bold,
-    #[serde(rename = "bolder")]
-    Bolder,
-    #[serde(rename = "lighter")]
-    Lighter,
-    #[serde(rename = "normal")]
-    Normal,
-}
-
 /// The line interpolation method to use for line and area marks. One of the following:
 /// - `"linear"`: piecewise linear segments, as in a polyline.
 /// - `"linear-closed"`: close the linear segments to form a polygon.
@@ -9149,26 +9166,6 @@ pub enum Content {
     Data,
     #[serde(rename = "encoding")]
     Encoding,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum PointEnum {
-    #[serde(rename = "transparent")]
-    Transparent,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum LabelOverlapEnum {
-    #[serde(rename = "greedy")]
-    Greedy,
-    #[serde(rename = "parity")]
-    Parity,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum ExtentEnum {
-    #[serde(rename = "min-max")]
-    MinMax,
 }
 
 /// The extent of the band. Available options include:
@@ -9496,12 +9493,6 @@ pub enum AggregateOp {
     Variancep,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum BinEnum {
-    #[serde(rename = "binned")]
-    Binned,
-}
-
 /// Time unit for the field to be filtered.
 ///
 /// Time unit (e.g., `year`, `yearmonth`, `month`, `hours`) for a temporal field.
@@ -9638,37 +9629,11 @@ pub enum LegendType {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum Domain {
-    #[serde(rename = "unaggregated")]
-    Unaggregated,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum ScaleInterpolateParamsType {
     #[serde(rename = "cubehelix")]
     Cubehelix,
     #[serde(rename = "cubehelix-long")]
     CubehelixLong,
-    #[serde(rename = "rgb")]
-    Rgb,
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum ScaleInterpolate {
-    #[serde(rename = "cubehelix")]
-    Cubehelix,
-    #[serde(rename = "cubehelix-long")]
-    CubehelixLong,
-    #[serde(rename = "hcl")]
-    Hcl,
-    #[serde(rename = "hcl-long")]
-    HclLong,
-    #[serde(rename = "hsl")]
-    Hsl,
-    #[serde(rename = "hsl-long")]
-    HslLong,
-    #[serde(rename = "lab")]
-    Lab,
     #[serde(rename = "rgb")]
     Rgb,
 }
